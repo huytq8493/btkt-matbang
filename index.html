@@ -149,6 +149,32 @@
   .s-empty{color:#cbd5d0}
   .swe{background:#fff5f5}
   #schGrid .warn{background:#fef2f2;outline:2px solid #fecaca;outline-offset:-2px}
+  .cmpg{border-collapse:collapse;font-size:11px;white-space:nowrap}
+  .cmpg th,.cmpg td{border:1px solid #eef2ef;padding:3px 5px;text-align:center}
+  .cmpg thead th{position:sticky;top:0;background:#f4f7f5;z-index:3;font-size:10px;color:var(--muted)}
+  .cmpg .snm{position:sticky;left:0;background:#fff;z-index:2;text-align:left;min-width:160px;font-weight:600;padding-left:8px}
+  .cmpg thead .snm{z-index:4}
+  .cmpg td.sc{min-width:26px}
+  .cmpg .rl{font-size:9px;color:var(--muted);text-align:right;padding-right:6px;position:sticky;left:0;background:#fff;z-index:2;font-weight:700}
+  .cmpg .rl-e{color:#1d4ed8}.cmpg .rl-a{color:#166534}
+  .cmpg .zrow td{background:#eaf3ee;font-weight:800;color:var(--green-d);text-align:left;position:sticky;left:0;z-index:2}
+  .cmpg td.diff{outline:2px solid #f59e0b;outline-offset:-2px}
+  .cmpstat{display:flex;gap:18px;flex-wrap:wrap;background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:13px}
+  .cmpstat b{font-size:18px}
+  #tourGrid{border-collapse:collapse;font-size:11px}
+  #tourGrid th,#tourGrid td{border:1px solid #eef2ef;padding:3px 5px;text-align:center;white-space:nowrap}
+  #tourGrid thead th{position:sticky;top:0;background:#f4f7f5;z-index:3;font-size:10px;color:var(--muted);vertical-align:bottom}
+  #tourGrid .cn{position:sticky;left:0;background:#fff;z-index:2;text-align:left;min-width:190px;max-width:230px;white-space:normal;font-weight:600}
+  #tourGrid thead .cn{z-index:4}
+  #tourGrid .grp td,#tourGrid tr.grp td{background:#eaf3ee;color:var(--green-d);font-weight:800;font-size:10px;text-align:left}
+  #tourGrid .nm{writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap;height:104px;font-weight:600;font-size:10px}
+  #tourGrid td.mk{font-weight:800;min-width:22px}
+  #tourGrid td.mk-D{background:#fef9c3;color:#854d0e}#tourGrid td.mk-L{background:#e0f2fe;color:#075985}#tourGrid td.mk-I{background:#ccfbf1;color:#0f766e}
+  #tourGrid tr.past .cn{color:#94a3b8}
+  #tourGrid th.tg-D{background:#fff7d6}#tourGrid th.tg-L{background:#e8f4fd}#tourGrid th.tg-I{background:#e2fbf4}
+  #tourGrid .tbd{border-left:2px solid #2563eb}
+  #tourGrid td.te{cursor:pointer}
+  #tourGrid td.te:hover{outline:2px solid var(--green);outline-offset:-2px;background:#eafff1}
   .nstbl{width:100%;border-collapse:collapse;font-size:12.5px}
   .nstbl th,.nstbl td{border:1px solid var(--line);padding:5px 7px;text-align:left}
   .nstbl input,.nstbl select{border:1px solid var(--line);border-radius:6px;padding:3px 5px;font-size:12px;width:100%}
@@ -446,6 +472,11 @@
         <label style="font-size:13px;font-weight:600;color:var(--muted)">Tháng:</label>
         <select id="schMonth" onchange="genSchedule()"></select>
         <button class="btn btn-save" onclick="genSchedule()">⚙️ Xếp lịch tự động</button>
+        <button class="btn-reload" id="srcBtn" onclick="toggleSrc()">🗂️ Nguồn: ma trận TOUR</button>
+        <button class="btn-reload" id="cmpBtn" onclick="toggleCompare()">🔍 So sánh thực tế</button>
+        <button class="btn-reload" id="tourBtn" onclick="toggleTour()">🗂️ Ma trận TOUR</button>
+        <button class="btn-reload" id="syncBtn" onclick="tourSyncBtn()">🔄 Đồng bộ ngày theo mặt bằng</button>
+        <button class="btn-save" onclick="exportSchedHR()">📥 Xuất file lịch (hệ thống HR)</button>
         <button class="btn-reload" onclick="exportSchedCSV()">⬇️ CSV</button>
         <button class="btn-reload" onclick="toggleNS()">👥 Quản lý nhân sự</button>
         <button class="btn-reload" onclick="toggleRules()">📋 Quy tắc</button>
@@ -453,7 +484,7 @@
       </div>
       <div id="rulePanel" style="display:none;margin-bottom:14px"></div>
       <div id="nsPanel" style="display:none;margin-bottom:14px"></div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Mỗi khai trương cử 1 điện + 1 lạnh + 1 IT. Ngày thi công (chưa gồm 2 ngày w đến/về): Shop BT9/IT8 · Shop+Fashion BT12/IT9 · Cải tạo Fashion BT10/IT4. Bảo trì kết thúc trước ngày khai trương; IT ở đến hết Chủ nhật tuần khai trương. Trọn chuyến = +2 ngày w. Bấm ô để sửa tay.</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Mỗi khai trương cử 1 điện + 1 lạnh + 1 IT. Ngày thi công (chưa gồm 2 ngày w đến/về): Shop BT9/IT8 · Shop+Fashion BT12/IT9 · Cải tạo Fashion BT10/IT4. Bảo trì kết thúc trước ngày khai trương. NV vị trí “Điện” thuần rút ngắn 1 ngày: ngày thi công cuối là thứ 6, thứ 7 là w. IT Helpdesk: đi từ CN (nếu có fashion) hoặc T2 (nếu không), <b>thi công đến hết thứ 2 sau khai trương, thứ 3 là w</b>. Trọn chuyến = +2 ngày w. Bấm ô để sửa tay.</div>
       <div class="leg2">
         <span class="lg"><span class="sw" style="background:#e0f2fe;color:#075985">CT</span> Công tác</span>
         <span class="lg"><span class="sw" style="background:#eafff1;color:#166534">H</span> HC5 (8–17h)</span>
@@ -470,6 +501,27 @@
       </div>
       <div id="siteLegend" class="leg2" style="display:none;background:#fff"></div>
       <div class="tablewrap" id="schWrap" style="max-height:72vh"><table id="schGrid"></table></div>
+      <div id="cmpWrap" style="display:none">
+        <div class="leg2" style="background:#fff;margin-bottom:8px">
+          <span class="lg"><span class="sw" style="background:#dbeafe;color:#1d4ed8">Đề xuất</span> lịch tool đề nghị</span>
+          <span class="lg"><span class="sw" style="background:#dcfce7;color:#166534">Thực tế</span> lịch WSHR đang chạy</span>
+          <span class="lg"><span class="sw" style="outline:2px solid #f59e0b;outline-offset:-2px">■</span> lệch công tác (T ⟷ đề xuất CT)</span>
+          <span class="leg-sep"></span>
+          <span class="lg"><span class="sw" style="background:#e0f2fe;color:#075985">CT/T</span> công tác</span>
+          <span class="lg"><span class="sw" style="background:#eafff1;color:#166534">5/H</span> HC</span>
+          <span class="lg"><span class="sw" style="background:#fff2e2;color:#9a3412">P</span> PM26</span>
+          <span class="lg"><span class="sw" style="color:#dc2626">w/A/O/C</span> nghỉ</span>
+        </div>
+        <div id="cmpStat" class="cmpstat"></div>
+        <div style="font-weight:800;color:#1d4ed8;margin:12px 0 6px;font-size:14px">📋 LỊCH ĐỀ XUẤT (tool tự xếp)</div>
+        <div class="tablewrap" style="max-height:46vh"><table id="cmpGridDX" class="cmpg"></table></div>
+        <div style="font-weight:800;color:#166534;margin:18px 0 6px;font-size:14px">✅ LỊCH THỰC TẾ (WSHR đang chạy)</div>
+        <div class="tablewrap" style="max-height:46vh"><table id="cmpGridTT" class="cmpg"></table></div>
+      </div>
+      <div id="tourWrap" style="display:none">
+        <div style="font-size:12.5px;color:var(--muted);margin-bottom:8px">Ma trận phân công tour: <b>hàng = công trình</b>, <b>cột = nhân viên</b>. Phân công lấy từ <b>ma trận TOUR</b>, còn <b>ngày khai trương luôn lấy theo Kế hoạch mặt bằng</b> — thêm/sửa/xoá địa điểm ở trang kế hoạch là ma trận và lịch làm việc TỰ cập nhật ngay, không cần bấm gì (bấm <b>🔄 Đồng bộ ngày theo mặt bằng</b> để ghi luôn vào ma trận). <b>Bắt đầu</b> = ngày Bảo trì đi thi công = Khai trương − <b>14</b> (có Fashion) / − <b>12</b> (không). <b style="color:var(--green-d)">Bấm vào ô để giao / bỏ người</b> — sửa xong tự áp ngay vào lịch làm việc. <b>Cột nhân viên</b> chỉ gồm người có tick <b>Đi thi công</b> ở mục 👥 Quản lý nhân sự. <span style="background:#fef9c3;color:#854d0e;padding:1px 5px;border-radius:4px">Đ</span> điện · <span style="background:#e0f2fe;color:#075985;padding:1px 5px;border-radius:4px">L</span> lạnh · <span style="background:#ccfbf1;color:#0f766e;padding:1px 5px;border-radius:4px">IT</span></div>
+        <div class="tablewrap" style="max-height:74vh"><table id="tourGrid"></table></div>
+      </div>
     </div>
   </div>
 </div>
@@ -496,6 +548,8 @@
       </div>
       <label>Ngày nhận nhà (tuỳ chọn)</label>
       <input id="f_nhan" type="date">
+      <label>Mã chi nhánh trên hệ thống HR (tuỳ chọn)</label>
+      <input id="f_cn" type="text" placeholder='VD: CN 374 — dùng khi export lịch, ô công tác ghi "T - CN 374"'>
       <label>Link nhóm Zalo (tuỳ chọn)</label>
       <input id="f_zalo" type="text" placeholder="VD: https://zalo.me/g/abcxyz — để gửi cảnh báo vào nhóm">
       <div class="calc-out" id="f_calc">Nhập ngày để xem tính toán…</div>
@@ -532,6 +586,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 const SB_URL='https://rnzawekklwfpndgloppw.supabase.co';
 const SB_KEY='sb_publishable_yTWcRJf3fAqaDbTRSM1lfA_gHlUiKNZ';
@@ -582,8 +637,9 @@ async function loadData(){
       else if(tre>0){cat='late';label='Trễ '+tre+' ngày';}
       else{cat='soon';label='Sắp khai trương';}}
     const isLate=nhanS&&(need-thicong)>0;
-    return {id:row.id,stt:row.stt,ten:row.ten,fashion,nhanS,khaiS,nhan,khai,thicong,need,tre,cat,label,isLate,zaloLink:row.zalo_link||'',stages,tien_do};
+    return {id:row.id,stt:row.stt,ten:row.ten,fashion,nhanS,khaiS,nhan,khai,thicong,need,tre,cat,label,isLate,an:!!row.an,zaloLink:row.zalo_link||'',cnCode:row.cn_code||'',stages,tien_do};
   });
+  MBLINK={};mbAutoDone=false;MB_SYNCED=0;
   computeKPI();renderTop();renderUpcoming();render();
   if(firstPaint){animateNums();firstPaint=false;}
   if(progId){const r=recs.find(x=>x.id===progId);if(r){renderProg(r);loadLog(progId);}else showDash();}
@@ -592,12 +648,16 @@ async function loadData(){
   booted=true;
 }
 
+let showHidden=false;
+function visR(){return recs.filter(r=>!r.an);} // mặt bằng đang hiển thị (chưa ẩn)
+function hiddenCount(){return recs.filter(r=>r.an).length;}
 function computeKPI(){
-  kTotal=recs.length;
-  kOpen=recs.filter(r=>r.cat==='open').length;
-  kSoonPure=recs.filter(r=>r.khai&&r.khai>=TODAY&&!r.isLate).length;
-  kLate=recs.filter(r=>r.isLate&&r.khai>=TODAY).length;
-  kPost=recs.filter(r=>r.cat==='post').length;
+  const vr=visR();
+  kTotal=vr.length;
+  kOpen=vr.filter(r=>r.cat==='open').length;
+  kSoonPure=vr.filter(r=>r.khai&&r.khai>=TODAY&&!r.isLate).length;
+  kLate=vr.filter(r=>r.isLate&&r.khai>=TODAY).length;
+  kPost=vr.filter(r=>r.cat==='post').length;
 }
 function animateNums(){
   document.querySelectorAll('.kpi .n').forEach(el=>{
@@ -612,7 +672,7 @@ function renderTop(){
   document.querySelectorAll('.kpi').forEach(el=>el.onclick=()=>{filter=el.dataset.f;renderTop();render();});
 
   const months={};
-  recs.forEach(r=>{if(r.khai){const k=(r.khai.getMonth()+1)+'/'+r.khai.getFullYear();months[k]=(months[k]||0)+1;}});
+  visR().forEach(r=>{if(r.khai){const k=(r.khai.getMonth()+1)+'/'+r.khai.getFullYear();months[k]=(months[k]||0)+1;}});
   const monthKeys=Object.keys(months).sort((a,b)=>{const[ma,ya]=a.split('/').map(Number);const[mb,yb]=b.split('/').map(Number);return ya-yb||ma-mb;});
   const maxM=Math.max(1,...Object.values(months));
   document.getElementById('bars').innerHTML=monthKeys.map(k=>{const m=k.split('/')[0],y=k.split('/')[1],v=months[k];
@@ -669,7 +729,7 @@ function passFilter(r){
 
 function renderUpcoming(){
   const uq=(document.getElementById('upSearch')?.value||'').toLowerCase();
-  const up=recs.filter(r=>r.khai&&r.khai>=TODAY&&r.ten.toLowerCase().includes(uq));
+  const up=recs.filter(r=>!r.an&&r.khai&&r.khai>=TODAY&&r.ten.toLowerCase().includes(uq));
   up.sort((a,b)=>{let x,y;switch(upSortK){
     case'ten':x=a.ten;y=b.ten;break;
     case'loai':x=a.fashion;y=b.fashion;break;
@@ -702,7 +762,7 @@ function renderUpcoming(){
 function render(){
   const q=document.getElementById('search').value.toLowerCase();
   const ff=document.getElementById('fashionF').value;
-  let rows=recs.filter(r=>passFilter(r)&&r.ten.toLowerCase().includes(q)&&(ff===''||String(r.fashion)===ff));
+  let rows=recs.filter(r=>(showHidden||!r.an)&&passFilter(r)&&r.ten.toLowerCase().includes(q)&&(ff===''||String(r.fashion)===ff));
   rows.sort((a,b)=>{let x,y;switch(sortK){
       case'stt':x=a.stt;y=b.stt;break;case'ten':x=a.ten;y=b.ten;break;case'loai':x=a.fashion;y=b.fashion;break;
       case'thicong':x=a.thicong??-1;y=b.thicong??-1;break;case'tiendo':x=a.tien_do;y=b.tien_do;break;
@@ -712,17 +772,19 @@ function render(){
     return (x>y?1:x<y?-1:0)*(sortAsc?1:-1);});
   document.getElementById('count').textContent=rows.length;
   document.querySelectorAll('th[data-k]').forEach(th=>{th.classList.remove('sortA','sortD');if(th.dataset.k===sortK)th.classList.add(sortAsc?'sortA':'sortD');});
-  document.getElementById('tbody').innerHTML=rows.map(r=>{
+  let bodyHTML=rows.map(r=>{
     let statusCell='<span class="dim">—</span>';
     const w=warnText(r);
     if(w)statusCell=`<div class="warnrow ${w.type}"><span>${w.type==='rush'?'🔴':'🟠'}</span><span>${w.msg}${zaloBtn(r)}</span></div>`;
-    const acts=`${SHOW_PROGRESS?`<a class="act prog" onclick="openProg(${r.id})">📈 Báo cáo tiến độ</a>`:''}<span class="actions"><a class="act edit" onclick="openEdit(${r.id})">✎ sửa</a><a class="act del" onclick="delMatBang(${r.id})">✕ xoá</a></span>`;
+    const acts=r.an
+      ? `<span class="actions"><a class="act" style="color:var(--green-d);cursor:pointer" onclick="restoreMatBang(${r.id})">↺ khôi phục</a></span>`
+      : `${SHOW_PROGRESS?`<a class="act prog" onclick="openProg(${r.id})">📈 Báo cáo tiến độ</a>`:''}<span class="actions"><a class="act edit" onclick="openEdit(${r.id})">✎ sửa</a><a class="act del" onclick="delMatBang(${r.id})">✕ ẩn</a></span>`;
     const loaiCell=r.fashion?`<span class="badge b-fashion">${LABEL[r.fashion]}</span>`:'<span class="badge b-shop">Shop</span>';
     let tc='<span class="dim">—</span>';
     if(r.thicong!=null){const cls=(r.need-r.thicong)>0?'bad':'ok';tc=`<span class="thicong-pill"><span class="${cls}">${r.thicong}</span> / ${r.need}</span>`;}
-    return `<tr class="${r.cat==='late'?'row-late':''}${r.cat==='open'?'row-open':''}">
+    return `<tr class="${r.cat==='late'?'row-late':''}${r.cat==='open'?'row-open':''}"${r.an?' style="opacity:.55"':''}>
       <td class="tcenter" data-label="STT">${r.stt??''}</td>
-      <td data-label="Mặt bằng"><span class="mb-name">${r.ten}</span>${acts}</td>
+      <td data-label="Mặt bằng"><span class="mb-name">${r.ten}</span>${r.an?' <span class="badge" style="background:#f1f5f9;color:#64748b;border-color:#e2e8f0">đã ẩn</span>':''}${acts}</td>
       <td class="tcenter" data-label="Loại">${loaiCell}</td>
       <td data-label="Nhận nhà">${fmt(r.nhan)}</td>
       <td data-label="Khai trương"><b>${fmt(r.khai)}</b></td>
@@ -731,6 +793,9 @@ function render(){
       <td class="tcenter col-prog" data-label="Tiến độ">${progCell(r)}</td>
       <td data-label="Tình trạng">${statusCell}</td>
     </tr>`;}).join('');
+  const hc=hiddenCount();
+  if(hc)bodyHTML+=`<tr><td colspan="9" style="text-align:center;padding:9px;background:#fafafa;border-top:1px dashed var(--line)"><a class="act" style="cursor:pointer;color:var(--muted2)" onclick="showHidden=!showHidden;render()">${showHidden?'▲ Ẩn bớt':'▼ Hiện'} ${hc} mặt bằng đã ẩn</a> <span class="dim" style="font-size:11px">— vẫn lưu & dùng để xếp lịch làm việc</span></td></tr>`;
+  document.getElementById('tbody').innerHTML=bodyHTML;
 }
 
 // ---- Modal thêm/sửa ----
@@ -739,7 +804,7 @@ function openModal(){
   editing=null;
   document.getElementById('modalTitle').textContent='Thêm chi nhánh mới';
   document.getElementById('saveBtn').textContent='Lưu chi nhánh';
-  f_ten.value='';f_loai.value='0';f_khai.value='';f_nhan.value='';f_zalo.value='';
+  f_ten.value='';f_loai.value='0';f_khai.value='';f_nhan.value='';f_zalo.value='';f_cn.value='';
   document.getElementById('f_err').style.display='none';
   document.getElementById('f_calc').innerHTML='Nhập ngày để xem tính toán…';
   document.getElementById('overlay').classList.add('show');
@@ -752,7 +817,7 @@ function openEdit(id){
   f_ten.value=r.ten;f_loai.value=r.fashion;
   f_khai.value=r.khaiS?r.khaiS.split('/').reverse().join('-'):'';
   f_nhan.value=r.nhanS?r.nhanS.split('/').reverse().join('-'):'';
-  f_zalo.value=r.zaloLink||'';
+  f_zalo.value=r.zaloLink||'';f_cn.value=r.cnCode||'';
   document.getElementById('f_err').style.display='none';
   document.getElementById('overlay').classList.add('show');liveCalc();
 }
@@ -779,19 +844,24 @@ async function saveBranch(){
   const ten=f_ten.value.trim(),khaiV=f_khai.value,nhanV=f_nhan.value,loai=+f_loai.value;
   const err=document.getElementById('f_err');
   if(!ten||!khaiV){err.textContent='Vui lòng nhập tên mặt bằng và ngày khai trương.';err.style.display='block';return;}
-  const payload={ten,loai,nhan_nha:nhanV||null,khai_truong:khaiV,zalo_link:f_zalo.value.trim()||null,updated_at:new Date().toISOString()};
+  const payload={ten,loai,nhan_nha:nhanV||null,khai_truong:khaiV,zalo_link:f_zalo.value.trim()||null,cn_code:f_cn.value.trim()||null,updated_at:new Date().toISOString()};
   let res;
   if(editing){res=await sb.from(TABLE).update(payload).eq('id',editing);}
   else{const maxStt=Math.max(0,...recs.map(r=>r.stt||0));res=await sb.from(TABLE).insert({...payload,stt:maxStt+1});}
   if(res.error){err.textContent='Lỗi lưu: '+res.error.message;err.style.display='block';return;}
-  closeModal();loadData();
+  closeModal();await loadData();afterMBChange(true);
 }
 async function delMatBang(id){
   const r=recs.find(x=>x.id===id);
-  if(!confirm('Xoá mặt bằng "'+(r?r.ten:'')+'" khỏi danh sách chung?'))return;
-  const {error}=await sb.from(TABLE).delete().eq('id',id);
-  if(error){alert('Lỗi xoá: '+error.message);return;}
-  loadData();
+  if(!confirm('Ẩn mặt bằng "'+(r?r.ten:'')+'" khỏi danh sách?\n\nMặt bằng này sẽ bị bỏ khỏi CẢ ma trận phân công và lịch làm việc — người đang gán cho nó sẽ được trả về xếp ca bình thường.\n\nDữ liệu vẫn được lưu, khôi phục lại được.'))return;
+  const {error}=await sb.from(TABLE).update({an:true}).eq('id',id);
+  if(error){alert('Lỗi: '+error.message);return;}
+  await loadData();afterMBChange(true);
+}
+async function restoreMatBang(id){
+  const {error}=await sb.from(TABLE).update({an:false}).eq('id',id);
+  if(error){alert('Lỗi: '+error.message);return;}
+  await loadData();afterMBChange(true);
 }
 
 // ===== TIẾN ĐỘ THI CÔNG =====
@@ -1010,7 +1080,7 @@ async function applyZalo(){
     }else{maxStt++;const nm=document.getElementById('z_name_'+i).value.trim();
       await sb.from(TABLE).insert({stt:maxStt,ten:nm,loai:it.loai,nhan_nha:it.nhanS||null,khai_truong:it.khaiS||null});nNew++;}
   }
-  closeZalo();await loadData();alert('Đã áp dụng: '+nNew+' tạo mới, '+nUpd+' cập nhật.');
+  closeZalo();await loadData();await afterMBChange(true);alert('Đã áp dụng: '+nNew+' tạo mới, '+nUpd+' cập nhật.');
 }
 function openZalo(){document.getElementById('z_text').value='';document.getElementById('z_preview').innerHTML='';document.getElementById('z_apply').style.display='none';document.getElementById('zaloOverlay').classList.add('show');}
 function closeZalo(){document.getElementById('zaloOverlay').classList.remove('show');}
@@ -1024,6 +1094,132 @@ let SITECOL={}; // short công trình -> [bg,fg]
 async function loadNS(){const {data,error}=await sb.from('btkt_nhansu').select('*').order('zone',{ascending:true}).order('thu_tu',{ascending:true});if(!error)NS=data||[];}
 let LEAVE_ALL=[];
 async function loadLeaves(){const {data}=await sb.from('btkt_leave').select('*');LEAVE_ALL=data||[];}
+// ==== Phân công TOUR thật (ma trận Excel) ====
+let TOUR_ALL=[], useTour=true;
+const TOUR_ALIAS={'Nguyễn Trần Đức Khải':'Nguyễn Đức Trần Minh Khải','Nguyễn Minh Hào':'Nguyễn Minh Hảo'};
+async function loadTour(){const {data}=await sb.from('btkt_tour').select('*');TOUR_ALL=data||[];MBLINK={};}
+// ===== ĐỒNG BỘ MA TRẬN TOUR THEO KẾ HOẠCH MẶT BẰNG (btkt_matbang là nguồn duy nhất của NGÀY) =====
+let MBLINK={};
+function mbKtISO(r){return r.khaiS?r.khaiS.split('/').reverse().join('-'):'';}
+function tourMBFind(name){ // khớp tên công trình trong ma trận với mặt bằng; chỉ nhận khi khớp chắc và KHÔNG trùng điểm
+  if(name in MBLINK)return MBLINK[name];
+  const nt=mbTokens(name);let out=null;
+  if(nt.length){
+    const sc=recs.filter(r=>r.khai&&r.khaiS).map(r=>{const rt=new Set(mbTokens(r.ten));let n=0;nt.forEach(w=>{if(rt.has(w))n++;});return{r,n};}).sort((a,b)=>b.n-a.n);
+    const need=Math.max(Math.min(3,nt.length),Math.ceil(nt.length*0.7)); // phủ ≥70% từ khoá; tên ngắn kiểu "Hà Nội" phải khớp đủ
+    if(sc.length&&sc[0].n>=need&&!(sc[1]&&sc[1].n===sc[0].n))out=sc[0].r;
+  }
+  MBLINK[name]=out;return out;
+}
+function tourLive(){const d=new Date(TODAY);d.setDate(d.getDate()-14);return tourYMD(d);} /* chỉ chuyến từ 14 ngày trước trở đi mới lấy ngày theo mặt bằng — KHÔNG sửa lịch sử */
+function tourEff(t){ // NGÀY hiệu lực của 1 dòng ma trận = ngày trong kế hoạch mặt bằng. LOẠI vẫn giữ theo ma trận (chỉ cảnh báo khi lệch)
+  const kt0=t.khai_truong||'',fa=(t.fashion==='Có');
+  if(kt0<tourLive())return {kt:kt0,fa,mb:null,lech:'',faMB:null};
+  const r=tourMBFind(t.cong_trinh);if(!r)return {kt:kt0,fa,mb:null,lech:'',faMB:null};
+  const kt=mbKtISO(r)||kt0;
+  return {kt,fa,mb:r,lech:(kt!==kt0)?kt0:'',faMB:(r.fashion>=1)};
+}
+function tourDiffs(){ // công trình trong ma trận lệch NGÀY so với kế hoạch mặt bằng (đây là phần đồng bộ được)
+  const seen={},out=[];
+  TOUR_ALL.forEach(t=>{if(!t.khai_truong)return;const k=t.cong_trinh+'|'+t.khai_truong;if(seen[k])return;seen[k]=1;
+    const E=tourEff(t);if(!E.mb||E.mb.an||E.kt===t.khai_truong)return;   // địa điểm ẩn thì thôi, không sửa ngày nữa
+    out.push({cong_trinh:t.cong_trinh,mb:E.mb.ten,ktCu:t.khai_truong,ktMoi:E.kt,fa:E.fa});});
+  return out;
+}
+function tourTypeDiffs(){ // lệch LOẠI (Shop / Shop+Fashion) — KHÔNG tự sửa vì đổi loại là đổi số ngày thi công
+  const seen={},out=[];
+  TOUR_ALL.forEach(t=>{if(!t.khai_truong)return;if(seen[t.cong_trinh])return;seen[t.cong_trinh]=1;
+    const E=tourEff(t);if(!E.mb||E.faMB===null||E.faMB===E.fa)return;
+    out.push({cong_trinh:t.cong_trinh,mb:E.mb.ten,maTran:E.fa?'Shop+Fashion':'Shop',keHoach:E.faMB?'Shop+Fashion':'Shop'});});
+  return out;
+}
+function tourNoMatch(){ // công trình trong ma trận không khớp được mặt bằng nào (tên khác nhau quá) — ngày phải sửa tay
+  const today=tourYMD(TODAY),seen={},out=[];
+  TOUR_ALL.forEach(t=>{if(!t.khai_truong||t.khai_truong<today)return;
+    if(seen[t.cong_trinh])return;seen[t.cong_trinh]=1;
+    if(!tourEff(t).mb)out.push(t.cong_trinh);});
+  return out;
+}
+async function tourApplySync(){ // ghi ngày mới của mặt bằng vào btkt_tour (khai_truong + bat_dau + fashion)
+  MBLINK={};const df=tourDiffs();if(!df.length)return [];
+  for(const d of df){
+    const bd=new Date(d.ktMoi+'T00:00:00');bd.setDate(bd.getDate()-(d.fa?14:12));
+    const {error}=await sb.from('btkt_tour')
+      .update({khai_truong:d.ktMoi,bat_dau:tourYMD(bd)})
+      .eq('cong_trinh',d.cong_trinh).eq('khai_truong',d.ktCu);
+    if(error){alert('Lỗi đồng bộ: '+error.message);return [];}
+  }
+  await loadTour();return df;
+}
+function tourMsg(df){
+  const el=document.getElementById('schMsg');if(!el)return;
+  el.innerHTML='🔄 Đã đồng bộ '+df.length+' công trình theo kế hoạch mặt bằng: '
+    +df.map(d=>`<b>${d.cong_trinh.slice(0,26)}</b> ${isoToVN(d.ktCu)}→${isoToVN(d.ktMoi)}`).join(' · ');
+}
+function tourUnassigned(){ // địa điểm trong kế hoạch (còn tới) mà chưa giao ai trong ma trận
+  const linked=new Set();TOUR_ALL.forEach(t=>{const E=tourEff(t);if(E.mb)linked.add(E.mb.id);});
+  return recs.filter(r=>r.khai&&r.khaiS&&r.khai>=TODAY&&!r.an&&!linked.has(r.id)); // địa điểm đang ẩn thì không nhắc
+}
+// ==== Đổi DANH SÁCH ĐỊA ĐIỂM → ma trận + lịch làm việc đi theo ngay ====
+let mbSyncBusy=false, mbAutoDone=false, MB_SYNCED=0;
+async function afterMBChange(write){
+  if(mbSyncBusy)return;mbSyncBusy=true;
+  try{
+    MBLINK={};
+    if(!NS.length)await loadNS();
+    if(!TOUR_ALL.length)await loadTour();
+    let df=[];
+    if(write!==false)df=await tourApplySync();   // ghi ngày mới vào ma trận (chỉ chuyến còn tới, khớp tên chắc)
+    if(df.length)MB_SYNCED=df.length;            // đặt TRƯỚC khi vẽ lại để dòng trạng thái hiện đúng
+    if(tourOn)renderTour();
+    const mv=document.getElementById('schMonth');
+    if(mv&&mv.value)genSchedule();               // xếp lại lịch làm việc theo ngày mới
+    const na=tourUnassigned();
+    if(df.length)toast('🔄 Đã cập nhật ma trận & lịch làm việc theo '+df.length+' địa điểm đổi ngày');
+    if(na.length)toast(na.length+' địa điểm chưa giao ai trong ma trận: '+na.map(r=>r.ten.slice(0,20)).join(', '));
+  }catch(e){console.error('afterMBChange',e);}
+  finally{mbSyncBusy=false;}
+}
+async function tourSyncBtn(){
+  const el=document.getElementById('schMsg');el.textContent='Đang đồng bộ…';
+  if(!recs.length)await loadData();
+  if(!TOUR_ALL.length)await loadTour();
+  const df=await tourApplySync();
+  const nm=tourNoMatch();
+  if(tourOn)renderTour();
+  genSchedule();
+  if(df.length)tourMsg(df);
+  else el.textContent='✓ Ma trận đã khớp ngày khai trương của kế hoạch mặt bằng';
+  if(nm.length)el.innerHTML+=`<br><span style="color:#b45309">⚠️ ${nm.length} công trình không khớp tên mặt bằng nào, phải sửa ngày tay: ${nm.map(x=>x.slice(0,24)).join(' · ')}</span>`;
+  const td=tourTypeDiffs();
+  if(td.length)el.innerHTML+=`<br><span style="color:#b45309">⚠️ ${td.length} công trình lệch LOẠI (không tự sửa vì đổi loại là đổi số ngày thi công — sửa tay ở bên nào đúng): ${td.map(x=>x.cong_trinh.slice(0,22)+' ma trận '+x.maTran+' / kế hoạch '+x.keHoach).join(' · ')}</span>`;
+}
+function tourNS(ten){const t=TOUR_ALIAS[ten]||ten;return NS.find(e=>e.ten===t);}
+// đặt ngày công tác theo phân công tour; trả về ghi chú
+function sPlaceTour(){
+  const notes=[];const by={};
+  TOUR_ALL.forEach(t=>{if(!t.khai_truong)return;
+    const E=tourEff(t);if(E.mb&&E.mb.an)return;                        // địa điểm đã ẩn → bỏ hẳn, không xếp lịch
+    const kt=E.kt,k=t.cong_trinh+'|'+kt;                                // ngày khai trương lấy theo kế hoạch mặt bằng
+    (by[k]=by[k]||{ten:t.cong_trinh,ktS:kt,fashion:E.fa?'Có':'Không',names:[]}).names.push(t.ten);});
+  let n=0;
+  Object.values(by).forEach(o=>{
+    const p=o.ktS.split('-').map(Number);const kt=new Date(p[0],p[1]-1,p[2]);
+    const fa=o.fashion==='Có';
+    const bt=[],btE=[];{const st=new Date(kt);st.setDate(kt.getDate()-(fa?14:12));
+      const lastE=new Date(kt);lastE.setDate(kt.getDate()-1); // Điện thuần dừng TRƯỚC ngày này (KT-1 = thứ 7)
+      for(let d=new Date(st);d<kt;d.setDate(d.getDate()+1))if(d.getMonth()+1===SM&&d.getFullYear()===SY){bt.push(d.getDate());if(d<lastE)btE.push(d.getDate());}}
+    const it=sWindowIT(o.ktS,fa,isLocal(o.ten));
+    if(!bt.length&&!it.length)return;
+    const short=shortName(o.ten);let placed=false;
+    o.names.forEach(nm=>{const e=tourNS(nm);if(!e||!goCT(e))return; // bỏ nhà thầu, người không còn trong NS, và người không đi thi công
+      const days=(e.team==='IT')?it:((isElecOnly(e)&&btE.length)?btE:bt);
+      days.forEach(d=>{if(!SG[e.id][d]||SG[e.id][d]==='w')SG[e.id][d]={ct:1,b:short};});
+      if(days.length)placed=true;});
+    if(placed)n++;});
+  if(!n)notes.push('không có phân công tour trong tháng này');
+  return notes;
+}
 function stripD(s){return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/đ/g,'d');}
 const Z1=['ba ria','vung tau','lao cai','lai chau','yen bai','dien bien','son la','hoa binh','ha giang','cao bang','bac kan','lang son','tuyen quang','thai nguyen','phu tho','bac giang','quang ninh','bac ninh','ha nam','hai duong','hung yen','nam dinh','ninh binh','thai binh','vinh phuc','ha noi','hai phong','que vo'];
 const Z1hcm=['quan 1','quan 3','quan 5','quan 6','quan 7','quan 8','quan 10','quan 11','binh thanh','phu nhuan','nha be'];
@@ -1038,15 +1234,25 @@ function openType(r){const s=stripD(r.ten);if(/relocation|relayout|cai tao/.test
 function shortName(t){const m=(t||'').trim().match(/^([0-9A-Za-zÀ-ỹ\/\.]+)/);return (m?m[1]:t||'MB').replace(/\./g,'').slice(0,7);}
 function sdow(d){return new Date(SY,SM-1,d).getDay();}
 function sWeekend(d){const w=sdow(d);return w===0||w===6;}
-function sWindow(iso,N){const end=new Date(iso+'T00:00:00');const a=[];for(let k=N;k>=1;k--){const d=new Date(end);d.setDate(d.getDate()-k);if(d.getMonth()+1===SM&&d.getFullYear()===SY)a.push(d.getDate());}return a;} /* Bảo trì: N ngày từ N-N đến N-1, KHÔNG tính ngày khai trương */
-function sWindowIT(iso,N){ /* IT: từ N ngày trước khai trương, kéo ĐẾN HẾT CHỦ NHẬT của tuần khai trương */
+function sWindow(iso,N){const end=new Date(iso+'T00:00:00');const a=[];for(let k=N;k>=1;k--){const d=new Date(end);d.setDate(d.getDate()-k);if(d.getMonth()+1===SM&&d.getFullYear()===SY)a.push(d.getDate());}return a;}
+function goCT(e){return e && e.di_thi_cong!==false;} /* NV có đi thi công (tick ở Quản lý nhân sự); mặc định có */
+function isElecOnly(e){return /^Điện$/.test((e.vitri||'').trim());} /* chỉ NV vị trí "Điện" thuần — về sớm 1 ngày; người ghi Điện/Lạnh KHÔNG tính */
+function sWindowE(iso,N){const end=new Date(iso+'T00:00:00');const a=[];for(let k=N;k>=2;k--){const d=new Date(end);d.setDate(d.getDate()-k);if(d.getMonth()+1===SM&&d.getFullYear()===SY)a.push(d.getDate());}return a;} /* Điện thuần: ngắn hơn 1 ngày, ngày thi công cuối = KT-2 (thứ 6 khi khai trương CN); KT-1 (thứ 7) để trống để sRestCT đánh w */ /* Bảo trì: N ngày từ N-N đến N-1, KHÔNG tính ngày khai trương */
+function sWindowIT(iso,fashion,local){ /* IT theo tuần khai trương: ĐI = CN nếu có fashion / T2 nếu không; VỀ = hết THỨ 2 sau khai trương cho mọi chuyến, T3 là w */
   const open=new Date(iso+'T00:00:00');
-  const start=new Date(open);start.setDate(open.getDate()-N);
-  const end=new Date(open);while(end.getDay()!==0)end.setDate(end.getDate()+1); // Chủ nhật >= ngày khai trương
+  const weekMon=new Date(open);weekMon.setDate(open.getDate()-((open.getDay()+6)%7)); // Thứ 2 của tuần khai trương
+  const weekSun=new Date(weekMon);weekSun.setDate(weekMon.getDate()+6);             // Chủ nhật của tuần khai trương
+  const start=new Date(weekMon);if(fashion)start.setDate(weekMon.getDate()-1);       // có fashion: đi từ CN trước đó
+  const end=new Date(weekSun);end.setDate(weekSun.getDate()+1);                     // thi công đến hết THỨ 2 sau khai trương (trong hay ngoài HCM đều vậy); T3 để trống → sRestCT đánh w
   const a=[];for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)){if(d.getMonth()+1===SM&&d.getFullYear()===SY)a.push(d.getDate());}
   return a;}
+function ctLead(r){const t=openType(r);return Math.max(BTd[t],ITd[t])+3;} // số ngày trước khai trương chuyến bắt đầu (gồm ngày w)
+function ctSpan(r){const start=new Date(r.khai);start.setDate(r.khai.getDate()-ctLead(r));
+  const end=new Date(r.khai);while(end.getDay()!==0)end.setDate(end.getDate()+1);end.setDate(end.getDate()+1); // đến CN tuần KT +1 (phủ ngày IT về T2 nếu ngoài HCM)
+  return {start,end};}
 function monthOpenings(){
-  return recs.filter(r=>r.khai&&r.khai.getMonth()+1===SM&&r.khai.getFullYear()===SY&&r.khaiS)
+  const mStart=new Date(SY,SM-1,1),mEnd=new Date(SY,SM,0);
+  return recs.filter(r=>{if(!(r.khai&&r.khaiS)||r.an)return false;const s=ctSpan(r);return s.start<=mEnd&&s.end>=mStart;}) // địa điểm ẩn không tính // chuyến thi công giao với tháng đang chọn
     .map(r=>({ten:r.ten,short:shortName(r.ten),date:r.khaiS.split('/').reverse().join('-'),type:openType(r),zone:guessZone(r.ten),local:isLocal(r.ten)}));
 }
 // scheduler helpers
@@ -1057,13 +1263,14 @@ const MAXW=4; function capW(){return Math.max(3,Math.ceil(NS.length/7));}
 function sRest(id,d){if(sWC(id)<MAXW&&sWD(d)<capW()&&SG[id][d-1]!=='w')SG[id][d]='w';}
 function sPlaceCT(){
   let notes=[];const trip={},last={};NS.forEach(e=>{trip[e.id]=0;last[e.id]=-99;});
-  const pE=NS.filter(e=>/Điện/.test(e.vitri||'')),pC=NS.filter(e=>/Lạnh/.test(e.vitri||'')),pI=NS.filter(e=>e.team==='IT');
+  const pE=NS.filter(e=>goCT(e)&&/Điện/.test(e.vitri||'')),pC=NS.filter(e=>goCT(e)&&/Lạnh/.test(e.vitri||'')),pI=NS.filter(e=>goCT(e)&&e.team==='IT');
   monthOpenings().sort((a,b)=>a.date.localeCompare(b.date)).forEach(o=>{
-    const btW=sWindow(o.date,BTd[o.type]),itW=sWindowIT(o.date,ITd[o.type]);const sd=btW.length?btW[0]:1;const as=new Set();
-    const pick=(pool,days,lab)=>{let c=pool.filter(e=>!as.has(e.id)&&sFree(e.id,days));if(!c.length){notes.push(o.short+':thiếu '+lab);return;}
+    const btW=sWindow(o.date,BTd[o.type]),itW=sWindowIT(o.date,o.type>=1,o.local);const sd=btW.length?btW[0]:1;const as=new Set();
+    const btWE=sWindowE(o.date,BTd[o.type]); // cửa sổ ngắn hơn 1 ngày dành cho NV vị trí Điện thuần
+    const pick=(pool,daysFor,lab)=>{let c=pool.filter(e=>!as.has(e.id)&&sFree(e.id,daysFor(e)));if(!c.length){notes.push(o.short+':thiếu '+lab);return;}
       c.sort((a,b)=>{if(o.local){const za=a.zone===o.zone?0:1,zb=b.zone===o.zone?0:1;if(za!==zb)return za-zb;}if(trip[a.id]!==trip[b.id])return trip[a.id]-trip[b.id];return last[a.id]-last[b.id];});
-      const e=c[0];as.add(e.id);trip[e.id]++;last[e.id]=sd;days.forEach(d=>SG[e.id][d]={ct:1,b:o.short});};
-    pick(pE,btW,'điện');pick(pC,btW,'lạnh');pick(pI,itW,'IT');});
+      const e=c[0];as.add(e.id);trip[e.id]++;last[e.id]=sd;daysFor(e).forEach(d=>SG[e.id][d]={ct:1,b:o.short});};
+    pick(pE,e=>((isElecOnly(e)&&btWE.length)?btWE:btW),'điện');pick(pC,()=>btW,'lạnh');pick(pI,()=>itW,'IT');});
   STRIPS=trip;return notes;
 }
 function sRestCT(){NS.forEach(e=>{for(let d=2;d<=SDAYS;d++){if(SG[e.id][d]&&SG[e.id][d].ct&&!(SG[e.id][d-1]&&SG[e.id][d-1].ct)&&!SG[e.id][d-1])SG[e.id][d-1]='w';}for(let d=1;d<SDAYS;d++){if(SG[e.id][d]&&SG[e.id][d].ct&&!(SG[e.id][d+1]&&SG[e.id][d+1].ct)&&!SG[e.id][d+1])SG[e.id][d+1]='w';}});}
@@ -1096,13 +1303,29 @@ function genSchedule(){
   SG={};NS.forEach(e=>SG[e.id]={});
   // Áp đơn nghỉ A/O từ WSHR (giữ nguyên, không tự sinh) trước khi xếp
   LEAVE_ALL.forEach(l=>{const p=(l.ngay||'').split('-').map(Number);if(p[0]===SY&&p[1]===SM){const e=NS.find(x=>x.ten===l.ten);if(e)SG[e.id][p[2]]=l.loai;}});
-  const notes=sPlaceCT();sRestCT();sFillRest();sFillShifts();sRepairRot();
+  // Nguồn công tác: ma trận TOUR thật (mặc định) hoặc tự xếp
+  const notes=(useTour&&TOUR_ALL.length)?sPlaceTour():sPlaceCT();
+  sRestCT();sFillRest();sFillShifts();sRepairRot();
   const ops=monthOpenings();
-  SITECOL={};ops.forEach(o=>{if(!(o.short in SITECOL))SITECOL[o.short]=PALETTE[Object.keys(SITECOL).length%PALETTE.length];});
+  // màu công trình: gom từ chính lịch đã đặt (kể cả từ tour)
+  SITECOL={};const seenB=[];
+  NS.forEach(e=>{for(let d=1;d<=SDAYS;d++){const v=SG[e.id][d];if(v&&v.ct&&!seenB.includes(v.b))seenB.push(v.b);}});
+  seenB.forEach(b=>{SITECOL[b]=PALETTE[Object.keys(SITECOL).length%PALETTE.length];});
+  ops.forEach(o=>{if(!(o.short in SITECOL))SITECOL[o.short]=PALETTE[Object.keys(SITECOL).length%PALETTE.length];});
+  const src=(useTour&&TOUR_ALL.length)?`🗂️ theo ma trận TOUR (${seenB.length} công trình)`:'⚙️ tự xếp';
   document.getElementById('schInfo').textContent=`${ops.length} khai trương · ${NS.length} NV`;
-  document.getElementById('schMsg').textContent=notes.length?('⚠️ '+notes.join('; ')):'✓ Đã xếp lịch. Bấm ô để sửa.';
+  const dfl=(useTour&&TOUR_ALL.length&&recs.length)?tourDiffs():[];
+  const na=(useTour&&recs.length)?tourUnassigned():[];
+  document.getElementById('schMsg').innerHTML=(notes.length?('⚠️ '+notes.join('; ')+' · '):'✓ ')+src+' · bấm ô để sửa'
+    +(MB_SYNCED?` · <span style="color:#0f766e">🔄 đã cập nhật ${MB_SYNCED} công trình theo lịch khai trương mới</span>`:'')
+    +(na.length?` · <span style="color:#0f766e">${na.length} địa điểm chưa giao ai: ${na.map(r=>r.ten.slice(0,18)).join(' · ')}</span>`:'');
   renderSched();
+  if(cmpOn)refreshCompare();
+  if(dfl.length&&!mbAutoDone&&!mbSyncBusy){mbAutoDone=true;afterMBChange(true);}  // còn lệch thì tự cập nhật, không hỏi
 }
+function toggleSrc(){useTour=!useTour;
+  document.getElementById('srcBtn').textContent=useTour?'🗂️ Nguồn: ma trận TOUR':'⚙️ Nguồn: tự xếp';
+  genSchedule();}
 const SCYCLE=['','HC5','PM26','w'];
 function scycle(id,d){const cur=SG[id][d];if(cur&&cur.ct)SG[id][d]='';else{const i=SCYCLE.indexOf(cur||'');SG[id][d]=SCYCLE[(i+1)%SCYCLE.length];}renderSched();}
 function scls(v){if(!v)return 's-empty';if(v.ct)return 's-CT';return 's-'+v;}
@@ -1134,6 +1357,223 @@ function renderSched(){
     sle.innerHTML='<span class="lg" style="color:var(--muted2);font-weight:700">Công trình:</span>'+ops.map(o=>{const c=SITECOL[o.short]||['#eee','#555'];return `<span class="lg"><span class="vt" style="background:${c[0]};color:${c[1]};margin-left:0">${o.short}</span> ${o.ten.length>28?o.ten.slice(0,28)+'…':o.ten}</span>`;}).join('');}
   else sle.style.display='none';
 }
+// ===== So sánh Thực tế (WSHR) ⟷ Đề xuất =====
+let ACTUAL_ALL={}, ACT_KEY='', cmpOn=false;
+function normNm(s){return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/đ/g,'d').replace(/\s+/g,' ').trim();}
+async function loadActual(){const {data}=await sb.from('btkt_lich_thucte').select('*').eq('nam',SY).eq('thang',SM);
+  ACTUAL_ALL={};(data||[]).forEach(r=>{ACTUAL_ALL[normNm(r.ten)]={days:r.days||'',tloc:r.tloc||{}};});ACT_KEY=SY+'-'+SM;}
+function actMap(c){if(!c||c==='.')return{cls:'s-empty',txt:'·',ct:false};
+  if(c==='T')return{cls:'s-CT',txt:'T',ct:true};
+  if(c==='P')return{cls:'s-PM26',txt:'P',ct:false};
+  if(c==='w')return{cls:'s-w',txt:'w',ct:false};
+  if(c==='C')return{cls:'s-A',txt:'C',ct:false};
+  if('5,7,2,d,e,f,M'.split(',').includes(c))return{cls:'s-HC5',txt:({d:'13',e:'14',f:'27'}[c]||c),ct:false};
+  return{cls:'',txt:c,ct:false};}
+async function refreshCompare(){if(ACT_KEY!==SY+'-'+SM)await loadActual();renderCompare();}
+async function toggleCompare(){cmpOn=!cmpOn;
+  document.getElementById('cmpBtn').textContent=cmpOn?'📅 Xem lịch đề xuất':'🔍 So sánh thực tế';
+  if(cmpOn&&tourOn){tourOn=false;document.getElementById('tourBtn').textContent='🗂️ Ma trận TOUR';document.getElementById('tourWrap').style.display='none';}
+  document.getElementById('schWrap').style.display=cmpOn?'none':'';
+  document.getElementById('siteLegend').style.display=(!cmpOn&&monthOpenings().length)?'flex':'none';
+  document.getElementById('cmpWrap').style.display=cmpOn?'':'none';
+  if(cmpOn)await refreshCompare();}
+function renderCompare(){const days=SDAYS;
+  let head='<thead><tr><th class="snm">NHÂN VIÊN</th>';
+  for(let d=1;d<=days;d++)head+=`<th class="${sWeekend(d)?'s-w':''}">${DOWV[sdow(d)]}<br>${d}</th>`;
+  head+='<th>CT</th></tr></thead>';
+  let dx=head+'<tbody>',tt=head+'<tbody>',zp=0,totEx=0,totAc=0,agree=0,both=0,missing=[];
+  NS.forEach(e=>{
+    if(e.zone!==zp){const zr=`<tr class="zrow"><td colspan="${days+2}">ZONE ${e.zone}</td></tr>`;dx+=zr;tt+=zr;zp=e.zone;}
+    const act=ACTUAL_ALL[normNm(e.ten)];let exCells='',acCells='',exCT=0,acCT=0;
+    for(let d=1;d<=days;d++){
+      const v=SG[e.id]?SG[e.id][d]:'';const exCt=!!(v&&v.ct);if(exCt)exCT++;
+      let exStl='';if(v&&v.ct&&SITECOL[v.b])exStl=` style="background:${SITECOL[v.b][0]};color:${SITECOL[v.b][1]};font-weight:700"`;
+      const ac=act?actMap(act.days[d-1]):{cls:'s-empty',txt:'·',ct:false};if(ac.ct)acCT++;
+      const dc=(exCt!==ac.ct)?' diff':'';
+      exCells+=`<td class="sc ${scls(v)}${dc} ${sWeekend(d)?'swe':''}"${exStl}>${stext(v)}</td>`;
+      acCells+=`<td class="sc ${ac.cls}${dc} ${sWeekend(d)?'swe':''}">${ac.txt}</td>`;
+      if(exCt||ac.ct){both++;if(exCt===ac.ct)agree++;}}
+    totEx+=exCT;totAc+=acCT;if(!act)missing.push(e.ten);
+    dx+=`<tr><td class="snm">${e.ten}${vtBadge(e)}</td>${exCells}<td><b style="color:#1d4ed8">${exCT||''}</b></td></tr>`;
+    tt+=`<tr><td class="snm">${e.ten}${vtBadge(e)}${act?'':' <span class="muted" style="font-size:9px">(no WSHR)</span>'}</td>${acCells}<td><b style="color:#166534">${acCT||''}</b></td></tr>`;});
+  document.getElementById('cmpGridDX').innerHTML=dx+'</tbody>';
+  document.getElementById('cmpGridTT').innerHTML=tt+'</tbody>';
+  const rate=both?Math.round(agree/both*100):0;
+  document.getElementById('cmpStat').innerHTML=
+    `<div>Công tác (ngày·người)<br><b style="color:#1d4ed8">${totEx}</b> đề xuất · <b style="color:#166534">${totAc}</b> thực tế</div>`+
+    `<div>Khớp ngày công tác<br><b>${rate}%</b> <span class="muted">(${agree}/${both} ngày)</span></div>`+
+    `<div>Nhân sự<br><b>${NS.length}</b> NV${missing.length?` · <span class="muted">${missing.length} chưa có dữ liệu WSHR</span>`:''}</div>`+
+    `<div class="muted" style="max-width:340px">Ô viền cam = lệch công tác giữa đề xuất và thực tế. Đề xuất là gợi ý của tool, không nhất thiết trùng người thực tế đã cử.</div>`;
+}
+// ===== MA TRẬN TOUR (công trình × nhân viên) =====
+let tourOn=false;
+async function toggleTour(){tourOn=!tourOn;
+  document.getElementById('tourBtn').textContent=tourOn?'📅 Xem lịch ngày':'🗂️ Ma trận TOUR';
+  if(tourOn){cmpOn=false;document.getElementById('cmpBtn').textContent='🔍 So sánh thực tế';document.getElementById('cmpWrap').style.display='none';}
+  document.getElementById('schWrap').style.display=tourOn?'none':'';
+  document.getElementById('siteLegend').style.display=(!tourOn&&monthOpenings().length)?'flex':'none';
+  document.getElementById('tourWrap').style.display=tourOn?'':'none';
+  if(tourOn){if(!NS.length)await loadNS();if(!TOUR_ALL.length)await loadTour();
+    const df=await tourApplySync();renderTour();if(df.length){genSchedule();tourMsg(df);}}
+}
+function tourAssign(){
+  // Nếu có ma trận TOUR thật (Excel) → dùng nguyên phân công đó
+  if(useTour&&TOUR_ALL.length){
+    const by={};
+    TOUR_ALL.forEach(t=>{if(!t.khai_truong)return;
+      const E=tourEff(t);if(E.mb&&E.mb.an)return;                       // địa điểm đã ẩn → không hiện trong ma trận
+      const kt=E.kt,k=t.cong_trinh+'|'+kt;                               // hiển thị theo kế hoạch mặt bằng
+      if(!by[k]){const p=kt.split('-').map(Number);
+        by[k]={key:k,ktS:kt,ktDB:t.khai_truong,lech:E.lech,mbTen:E.mb?E.mb.ten:'',
+               stt:t.stt,ten:t.cong_trinh,khai:new Date(p[0],p[1]-1,p[2]),fashion:E.fa?1:0,names:[]};}
+      by[k].names.push(t.ten);});
+    // Mặt bằng đã có ngày khai trương nhưng chưa ai trong ma trận → thêm dòng trống để giao người
+    const linked=new Set();TOUR_ALL.forEach(t=>{const E=tourEff(t);if(E.mb)linked.add(E.mb.id);});
+    recs.forEach(r=>{if(!r.khai||!r.khaiS||r.an||r.khai<TODAY||linked.has(r.id))return;
+      const kt=mbKtISO(r);if(!kt)return;const k=r.ten+'|'+kt;if(by[k])return;
+      const p=kt.split('-').map(Number);
+      by[k]={key:k,ktS:kt,ktDB:kt,lech:'',mbTen:r.ten,moi:1,stt:r.stt,ten:r.ten,
+             khai:new Date(p[0],p[1]-1,p[2]),fashion:(r.fashion>=1)?1:0,names:[]};});
+    const ops=Object.values(by).sort((a,b)=>a.khai-b.khai);
+    const trip={};NS.forEach(e=>trip[e.id]=0);
+    ops.forEach(o=>{o.start=minus(o.khai,o.fashion?14:12);o.as={};o.ids=[];
+      o.names.forEach(nm=>{const e=tourNS(nm);if(!e)return;
+        const role=e.team==='IT'?'I':((e.nhom||'')==='L'?'L':'D');
+        if(!o.as[role])o.as[role]=e.id;o.ids.push(e.id);trip[e.id]++;});});
+    return {ops,trip,editable:true};
+  }
+  const ops=recs.filter(r=>r.khai&&r.khaiS&&!r.an).map(r=>({ten:r.ten,an:r.an,khai:r.khai,fashion:r.fashion,type:openType(r),zone:guessZone(r.ten),local:isLocal(r.ten)})).sort((a,b)=>a.khai-b.khai);
+  const pE=NS.filter(e=>goCT(e)&&/Điện/.test(e.vitri||'')),pC=NS.filter(e=>goCT(e)&&/Lạnh/.test(e.vitri||'')),pI=NS.filter(e=>goCT(e)&&e.team==='IT');
+  const trip={},lastEnd={},busy={};NS.forEach(e=>{trip[e.id]=0;lastEnd[e.id]=-1e15;busy[e.id]=[];});
+  const overlap=(id,s,e)=>busy[id].some(w=>s<=w[1]&&e>=w[0]);
+  // Ngày bắt đầu = ngày Bảo trì đi thi công = Khai trương − 14 (có Fashion) / − 12 (không)
+  ops.forEach(o=>{o.start=minus(o.khai,(o.fashion>=1)?14:12);const s=o.start.getTime(),e=o.khai.getTime();const as={};
+    const pick=(pool,role)=>{let c=pool.filter(x=>!Object.values(as).includes(x.id)&&!overlap(x.id,s,e));if(!c.length)return;
+      c.sort((a,b)=>{if(o.local){const za=a.zone===o.zone?0:1,zb=b.zone===o.zone?0:1;if(za!==zb)return za-zb;}if(trip[a.id]!==trip[b.id])return trip[a.id]-trip[b.id];return lastEnd[a.id]-lastEnd[b.id];});
+      const x=c[0];as[role]=x.id;trip[x.id]++;lastEnd[x.id]=e;busy[x.id].push([s,e]);};
+    pick(pE,'D');pick(pC,'L');pick(pI,'I');o.as=as;});
+  return {ops,trip};
+}
+// ==== Sửa người thi công ngay trên ma trận → áp vào lịch làm việc ====
+let TOUR_OPS=[];
+function tourYMD(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function tourBusy(id,o){ // chuyến khác trùng thời gian của người này
+  return TOUR_OPS.filter(x=>x.key!==o.key&&x.ids&&x.ids.includes(id)&&x.start<=o.khai&&x.khai>=o.start);
+}
+async function tourToggle(key,id){
+  let o=TOUR_OPS.find(x=>x.key===key);const e=NS.find(x=>x.id===id);if(!o||!e)return;
+  const msg=document.getElementById('schMsg');
+  if(o.lech){ // ngày còn lệch thì tự đồng bộ trước rồi mới sửa người, không hỏi lại
+    await tourApplySync();renderTour();
+    o=TOUR_OPS.find(x=>x.ten===o.ten&&x.ktS===o.ktS)||TOUR_OPS.find(x=>x.ten===o.ten)||o;}
+  const has=o.ids&&o.ids.includes(id);
+  if(has){
+    if(!confirm(`Bỏ ${e.ten} khỏi "${o.ten}" (KT ${fmt(o.khai)})?`))return;
+    const names=o.names.filter(n=>{const x=tourNS(n);return x&&x.id===id;});
+    const {error}=await sb.from('btkt_tour').delete().eq('cong_trinh',o.ten).eq('khai_truong',o.ktDB||o.ktS).in('ten',names.length?names:[e.ten]);
+    if(error){alert('Lỗi: '+error.message);return;}
+  }else{
+    const cf=tourBusy(id,o);
+    if(cf.length&&!confirm(`${e.ten} đang có chuyến trùng thời gian:\n- ${cf.map(x=>x.ten.slice(0,32)+' ('+fmt(x.start)+'→'+fmt(x.khai)+')').join('\n- ')}\n\nVẫn giao thêm?`))return;
+    const {error}=await sb.from('btkt_tour').upsert({stt:o.stt,cong_trinh:o.ten,fashion:o.fashion?'Có':'Không',
+      bat_dau:tourYMD(o.start),khai_truong:o.ktDB||o.ktS,ten:e.ten,mark:'x',nguon:'app'},{onConflict:'cong_trinh,khai_truong,ten'});
+    if(error){alert('Lỗi: '+error.message);return;}
+  }
+  msg.textContent='Đang cập nhật…';
+  await loadTour();          // nạp lại phân công
+  renderTour();              // vẽ lại ma trận
+  genSchedule();             // ÁP NGAY vào lịch làm việc
+  msg.textContent=`✓ Đã ${has?'bỏ':'giao'} ${e.ten} · ${o.ten.slice(0,26)} — đã cập nhật lịch làm việc`;
+}
+function renderTour(){
+  const {ops,trip,editable}=tourAssign();
+  TOUR_OPS=ops;
+  // nhóm theo cột "nhom" (D/L/IT) trong bảng nhân sự
+  const grp=e=>{const n=(e.nhom||'').toUpperCase();
+    if(n==='IT'||e.team==='IT')return 2; if(n==='L')return 1; if(n==='D')return 0;
+    return (/Lạnh/.test(e.vitri||'')&&!/Điện/.test(e.vitri||''))?1:0;};
+  const cols=NS.filter(goCT).sort((a,b)=>grp(a)-grp(b)||(a.thu_tu||999)-(b.thu_tu||999)); // chỉ người có tick Đi thi công
+  const GN=['ĐIỆN','LẠNH','IT HELPDESK'];const groups=[0,1,2].map(gi=>cols.filter(e=>grp(e)===gi));
+  const bd1={};[0,1,2].forEach(g=>{const i=cols.findIndex(e=>grp(e)===g);if(i>0)bd1[i]=1;});
+  let gh='<tr><th class="cn" rowspan="2">CÔNG TRÌNH ('+ops.length+')</th><th rowspan="2">Loại</th><th rowspan="2">Bắt đầu</th><th rowspan="2">Khai trương</th>';
+  const GC=['tg-D','tg-L','tg-I'];
+  groups.forEach((arr,gi)=>{if(arr.length)gh+=`<th class="${GC[gi]}" colspan="${arr.length}">${GN[gi]} (${arr.length})</th>`;});gh+='</tr>';
+  let nh='<tr>';cols.forEach((e,i)=>{nh+=`<th class="${GC[grp(e)]}${bd1[i]?' tbd':''}" title="${e.ten} · ${e.vitri||''} · Z${e.zone}"><div class="nm">${e.ten} (${trip[e.id]})</div></th>`;});nh+='</tr>';
+  let body='';
+  ops.forEach(o=>{let cells='';
+    cols.forEach((e,i)=>{
+      const on=o.ids?o.ids.includes(e.id):(o.as.D===e.id||o.as.L===e.id||o.as.I===e.id);
+      const g=grp(e);
+      const m=on?(g===2?'IT':(g===1?'L':'Đ')):'';
+      const cls=['mk',on?('mk-'+(g===2?'I':(g===1?'L':'D'))):'',bd1[i]?'tbd':'',editable?'te':''].filter(Boolean).join(' ');
+      const K=String(o.key||'').replace(/'/g,"\\'");
+      const attr=editable?` onclick="tourToggle('${K}',${e.id})" title="${e.ten} — ${String(o.ten).slice(0,30)} · bấm để ${on?'BỎ':'GIAO'}"`:'';
+      cells+=`<td class="${cls}"${attr}>${m}</td>`;});
+    const fb=o.fashion?`<span class="badge b-fashion">${o.fashion===2?'S+F+C':'S+F'}</span>`:'<span class="badge b-shop">Shop</span>';
+    const wb=(o.lech?` <span class="badge" style="background:#e0f2fe;color:#075985" title="Đã tự đổi từ ${isoToVN(o.lech)} sang ${isoToVN(o.ktS)} theo kế hoạch mặt bằng">đã dời từ ${isoToVN(o.lech)}</span>`:'')
+      +(o.moi?' <span class="badge" style="background:#dcfce7;color:#166534" title="Mặt bằng có trong kế hoạch nhưng chưa giao ai — bấm ô để giao người">chưa giao ai</span>':'');
+    body+=`<tr class="${o.khai<TODAY?'past':''}"><td class="cn">${o.ten}${wb}${o.an?' <span class="badge" style="background:#f1f5f9;color:#64748b">ẩn</span>':''}</td><td>${fb}</td><td>${fmt(o.start)}</td><td><b>${fmt(o.khai)}</b></td>${cells}</tr>`;});
+  document.getElementById('tourGrid').innerHTML='<thead>'+gh+nh+'</thead><tbody>'+body+'</tbody>';
+  // người KHÔNG đi thi công mà vẫn còn tên trong phân công → nhắc để dọn
+  const noGo=NS.filter(e=>!goCT(e));
+  if(noGo.length){
+    const stuck=noGo.filter(e=>ops.some(o=>(o.ids&&o.ids.includes(e.id))||(o.names||[]).some(nm=>{const x=tourNS(nm);return x&&x.id===e.id;})));
+    const el=document.getElementById('schMsg');
+    if(el&&stuck.length)el.innerHTML+=` · <span style="color:#b45309">${stuck.length} người không đi thi công nhưng còn phân công trong ma trận: ${stuck.map(e=>e.ten).join(' · ')} — bỏ tên họ khỏi chuyến hoặc tick lại</span>`;
+  }
+}
+// ===== XUẤT FILE LỊCH LÀM VIỆC ĐÚNG MẪU CỦA HỆ THỐNG HR (sheet "List") =====
+const DOWEN=['Su','Mo','Tu','We','Th','Fr','Sa'];
+function siteOf(short){ // ô lịch chỉ giữ tên NGẮN → tìm lại mặt bằng tương ứng
+  if(!short)return null;
+  let r=recs.find(x=>shortName(x.ten)===short);
+  if(!r){                                        // tên ngắn lấy từ tên trong ma trận TOUR → khớp sang mặt bằng
+    const t=TOUR_ALL.find(x=>shortName(x.cong_trinh)===short);
+    if(t){r=tourMBFind(t.cong_trinh);if(!r)return {rec:null,ten:t.cong_trinh};}
+  }
+  return r?{rec:r,ten:r.ten}:null;
+}
+function cnOf(short){const s=siteOf(short);return (s&&s.rec&&s.rec.cnCode)?s.rec.cnCode:'';}
+function siteName(short){const s=siteOf(short);return s?s.ten:short;}
+function hrCell(v){ // đổi ô lịch của app sang mã của hệ thống HR
+  if(!v)return '';
+  if(v.ct){const cn=cnOf(v.b);return cn?('T - '+cn):'T';}
+  return v; // HC5 · PM26 · w · A · O
+}
+function exportSchedHR(){
+  const msg=document.getElementById('schMsg');
+  if(typeof XLSX==='undefined'){alert('Chưa tải được thư viện xuất Excel (cần mạng). Thử lại sau.');return;}
+  if(!NS.length||!Object.keys(SG).length){alert('Chưa có lịch. Bấm "Xếp lịch tự động" trước.');return;}
+  const A=[];                                   // mảng ô theo dòng, dựng đúng layout mẫu
+  const nCols=13+SDAYS;
+  const blank=n=>Array.from({length:n},()=>null);
+  A.push(['DANH SÁCH PHÒNG BAN',...blank(nCols-1)]);
+  A.push(blank(nCols));
+  A.push(['STT','Mã số','Họ và tên','','HC','AM','PM','C','W','A','H','S','',
+          ...Array.from({length:SDAYS},(_,i)=>i+1)]);
+  A.push([...blank(13),...Array.from({length:SDAYS},(_,i)=>DOWEN[new Date(SY,SM-1,i+1).getDay()])]);
+  const order=NS.slice().sort((a,b)=>(a.zone-b.zone)||((a.thu_tu||999)-(b.thu_tu||999)));
+  order.forEach((e,i)=>{
+    const ma=(e.ma||'').trim();
+    A.push([i===0?'1':null, (ma&&/^\d+$/.test(ma))?+ma:(ma||null), e.ten||'', '', null,null,null,null,null,null,null,null, '',
+            ...Array.from({length:SDAYS},(_,d)=>hrCell(SG[e.id]?SG[e.id][d+1]:''))]);
+  });
+  const ws=XLSX.utils.aoa_to_sheet(A);
+  ws['!merges']=Array.from({length:13},(_,c)=>({s:{r:2,c},e:{r:3,c}}));   // A3:A4 … M3:M4 như file mẫu
+  ws['!cols']=[{wch:5},{wch:9},{wch:24},{wch:3},...Array.from({length:9},()=>({wch:4})),
+               ...Array.from({length:SDAYS},()=>({wch:9}))];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'List');
+  const fn=`Schedule_T${String(SM).padStart(2,'0')}_${SY}.xlsx`;
+  XLSX.writeFile(wb,fn);
+  const noMa=order.filter(e=>!(e.ma||'').trim()).map(e=>e.ten);
+  const noCN=[...new Set(order.flatMap(e=>{const out=[];for(let d=1;d<=SDAYS;d++){const v=SG[e.id]&&SG[e.id][d];
+    if(v&&v.ct&&!cnOf(v.b))out.push(v.b);}return out;}))];
+  let m=`✓ Đã xuất <b>${fn}</b> — ${order.length} nhân viên × ${SDAYS} ngày`;
+  if(noMa.length)m+=` · <span style="color:#b45309">${noMa.length} người thiếu Mã số: ${noMa.join(', ')}</span>`;
+  if(noCN.length)m+=` · <span style="color:#b45309">${noCN.length} công trình chưa có Mã CN (ô công tác chỉ ghi "T"): ${noCN.map(b=>siteName(b).slice(0,30)).join(' · ')} — điền Mã CN ở form sửa mặt bằng</span>`;
+  msg.innerHTML=m;
+}
 function exportSchedCSV(){
   let rows=[['Zone','Vị trí','Nhân viên',...Array.from({length:SDAYS},(_,i)=>i+1)]];
   NS.forEach(e=>{const r=[e.zone,e.vitri||'',e.ten];for(let d=1;d<=SDAYS;d++){const v=SG[e.id]?SG[e.id][d]:'';r.push(v?(v.ct?v.b:v):'');}rows.push(r);});
@@ -1147,7 +1587,7 @@ let ruleOpen=false;
 function toggleRules(){ruleOpen=!ruleOpen;const p=document.getElementById('rulePanel');p.style.display=ruleOpen?'block':'none';if(ruleOpen)p.innerHTML=rulesHTML();}
 function rulesHTML(){return `<div style="background:#f7faf8;border:1px solid var(--line);border-radius:12px;padding:15px 18px;font-size:13px;line-height:1.65">
   <div style="font-weight:800;color:var(--green-d);margin-bottom:8px">📋 Quy tắc xếp lịch tự động</div>
-  <b>1. Cử người đi khai trương:</b> mỗi chi nhánh cử <b>1 điện + 1 lạnh + 1 IT</b>. Số ngày thi công (chưa gồm 2 ngày w): Shop <b>BT${BTd[0]}/IT${ITd[0]}</b> · Shop+Fashion <b>BT${BTd[1]}/IT${ITd[1]}</b> · Cải tạo Fashion <b>BT${BTd[2]}/IT${ITd[2]}</b>. Tính lùi từ ngày khai trương. <b>Bảo trì</b> kết thúc trước ngày khai trương; <b>IT ở đến hết Chủ nhật</b> tuần khai trương.<br>
+  <b>1. Cử người đi khai trương:</b> mỗi chi nhánh cử <b>1 điện + 1 lạnh + 1 IT</b>. Số ngày thi công (chưa gồm 2 ngày w): Shop <b>BT${BTd[0]}/IT${ITd[0]}</b> · Shop+Fashion <b>BT${BTd[1]}/IT${ITd[1]}</b> · Cải tạo Fashion <b>BT${BTd[2]}/IT${ITd[2]}</b>. Tính lùi từ ngày khai trương. <b>Bảo trì</b> kết thúc trước ngày khai trương. <b>IT Helpdesk</b> (theo tuần khai trương): <b>đi</b> từ <b>CN</b> nếu có fashion / <b>T2</b> nếu không; <b>về</b> <b>T2</b> nếu công trình ngoài HCM / <b>CN</b> nếu trong HCM.<br>
   <b>2. Trọn chuyến:</b> bắt buộc <b>+1 ngày w trước và +1 ngày w sau</b> khối thi công (vd Shop = 1+9+1 = 11 ngày).<br>
   <b>3. Bố trí người:</b> vòng xoay đều — ai <b>ít chuyến / lâu chưa đi</b> thì ưu tiên (không theo skill). Chi nhánh ở <b>HCM / Bình Dương / Đồng Nai</b> ưu tiên người <b>cùng Zone (gần)</b> để tối ưu chi phí.<br>
   <b>4. Nghỉ:</b> tối đa <b>${MAXW} ngày w/tháng</b>; tổng người nghỉ w <b>mỗi ngày ≤ ${capW()}</b> (tổng NV ÷ 7); hạn chế nghỉ w liên tục. <b>A (phép) & O (nghỉ bù) lấy từ WSHR</b> — giữ nguyên, không tự sinh; lịch w/ca xếp quanh các ngày nghỉ này.<br>
@@ -1165,24 +1605,28 @@ function renderNS(){
     ${(nsFT||nsFP)?`<a class="edit" style="cursor:pointer" onclick="nsFT='';nsFP='';renderNS()">✕ Bỏ lọc</a>`:''}
     <span class="muted">${filtered.length}/${NS.length} NV</span>
   </div>`;
-  h+='<table class="nstbl"><tr><th style="width:80px">Mã số</th><th>Họ tên</th><th>Zone</th><th>Nhóm</th><th>Nghiệp vụ</th><th></th></tr>';
+  const nGo=NS.filter(goCT).length;
+  h+=`<div style="font-size:12px;color:var(--muted);margin-bottom:8px">Cột <b>Đi thi công</b>: tick thì nhân viên được xếp vào <b>ma trận thi công</b> và đi công tác khai trương. Bỏ tick thì chỉ trực ca tại khu vực, không hiện trong ma trận. Đang có <b>${nGo}/${NS.length}</b> người đi thi công.</div>`;
+  h+='<table class="nstbl"><tr><th style="width:80px">Mã số</th><th>Họ tên</th><th>Zone</th><th>Nhóm</th><th>Nghiệp vụ</th><th style="width:86px">Đi thi công</th><th></th></tr>';
   filtered.forEach(e=>{h+=`<tr>
     <td><input style="width:72px" value="${(e.ma||'')}" onchange="updNS(${e.id},'ma',this.value)"></td>
     <td><input value="${(e.ten||'').replace(/"/g,'&quot;')}" onchange="updNS(${e.id},'ten',this.value)"></td>
     <td><select onchange="updNS(${e.id},'zone',+this.value)"><option ${e.zone===1?'selected':''}>1</option><option ${e.zone===2?'selected':''}>2</option><option ${e.zone===3?'selected':''}>3</option></select></td>
     <td><select onchange="updNS(${e.id},'team',this.value)"><option ${e.team==='BT'?'selected':''}>BT</option><option ${e.team==='IT'?'selected':''}>IT</option></select></td>
     <td><select onchange="updNS(${e.id},'vitri',this.value)">${['Điện','Điện/Lạnh','Cơ Điện Tử','IT Helpdesk',''].map(p=>`<option value="${p}" ${(e.vitri||'')===p?'selected':''}>${p||'(chưa rõ)'}</option>`).join('')}</select></td>
+    <td style="text-align:center"><input type="checkbox" style="width:18px;height:18px;cursor:pointer" ${goCT(e)?'checked':''} onchange="updNS(${e.id},'di_thi_cong',this.checked)" title="Có đi thi công chi nhánh mới hay không"></td>
     <td><a style="color:#dc2626;cursor:pointer" onclick="delNS(${e.id})">✕</a></td></tr>`;});
-  if(!filtered.length)h+='<tr><td colspan="6" class="muted" style="text-align:center">Không có nhân viên khớp bộ lọc.</td></tr>';
-  h+=`<tr><td colspan="6"><button class="btn-reload" onclick="addNS()">＋ Thêm nhân viên</button></td></tr></table>`;
+  if(!filtered.length)h+='<tr><td colspan="7" class="muted" style="text-align:center">Không có nhân viên khớp bộ lọc.</td></tr>';
+  h+=`<tr><td colspan="7"><button class="btn-reload" onclick="addNS()">＋ Thêm nhân viên</button></td></tr></table>`;
   document.getElementById('nsPanel').innerHTML=h;
 }
 async function updNS(id,f,v){await sb.from('btkt_nhansu').update({[f]:v}).eq('id',id);const e=NS.find(x=>x.id===id);if(e)e[f]=v;if(nsOpen)renderNS();genSchedule();}
-async function addNS(){const mx=Math.max(0,...NS.map(e=>e.thu_tu||0));const {error}=await sb.from('btkt_nhansu').insert({ten:'Nhân viên mới',zone:2,team:'BT',vitri:'Điện',thu_tu:mx+1});if(!error){await loadNS();renderNS();genSchedule();}}
+async function addNS(){const mx=Math.max(0,...NS.map(e=>e.thu_tu||0));const {error}=await sb.from('btkt_nhansu').insert({ten:'Nhân viên mới',zone:2,team:'BT',vitri:'Điện',thu_tu:mx+1,di_thi_cong:true});if(!error){await loadNS();renderNS();genSchedule();}}
 async function delNS(id){if(!confirm('Xoá nhân viên này?'))return;await sb.from('btkt_nhansu').delete().eq('id',id);await loadNS();renderNS();genSchedule();}
 
 function buildMonths(){
-  const set=new Set();recs.forEach(r=>{if(r.khai)set.add(r.khai.getFullYear()+'-'+String(r.khai.getMonth()+1).padStart(2,'0'));});
+  const set=new Set();const ym=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  recs.forEach(r=>{if(r.khai){set.add(ym(r.khai));const s=ctSpan(r);set.add(ym(s.start));set.add(ym(s.end));}});
   if(!set.size)set.add(SY+'-'+String(SM).padStart(2,'0'));
   const arr=[...set].sort();
   const sel=document.getElementById('schMonth');const cur=sel.value;
@@ -1195,20 +1639,25 @@ async function showSched(){
   document.getElementById('detailView').style.display='none';
   document.getElementById('schedView').style.display='';
   window.scrollTo(0,0);
+  if(!recs.length)await loadData();
   if(!NS.length)await loadNS();
-  await loadLeaves();
+  await loadLeaves(); await loadTour();
+  MBLINK={};mbAutoDone=true;                       // tự cập nhật ma trận theo lịch khai trương TRƯỚC khi xếp, không cảnh báo
+  const df=await tourApplySync();if(df.length)MB_SYNCED=df.length;
   buildMonths(); genSchedule();
+  if(df.length)toast('🔄 Đã cập nhật ma trận theo '+df.length+' địa điểm đổi ngày khai trương');
 }
 
 // ---- init (Supabase realtime) ----
 if(!SHOW_PROGRESS)document.body.classList.add('hide-prog');
-document.getElementById('today').textContent='📅 '+TODAY.toLocaleDateString('vi-VN',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+const APP_BUILD='2026-09-03 08:55';  // TĂNG MỖI LẦN SỬA FILE — để biết trang đang chạy bản nào
+document.getElementById('today').innerHTML='📅 '+TODAY.toLocaleDateString('vi-VN',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'})+' <span style="opacity:.6;font-weight:600;font-size:11px" title="Bản dựng của trang đang mở. Nếu số này cũ hơn file trên máy thì trình duyệt đang dùng bản cache — bấm Ctrl+Shift+R">· bản '+APP_BUILD+'</span>';
 document.querySelectorAll('th[data-k]').forEach(th=>th.onclick=()=>{const k=th.dataset.k;if(sortK===k)sortAsc=!sortAsc;else{sortK=k;sortAsc=true;}render();});
 document.querySelectorAll('th[data-uk]').forEach(th=>th.onclick=()=>{const k=th.dataset.uk;if(upSortK===k)upSortAsc=!upSortAsc;else{upSortK=k;upSortAsc=true;}renderUpcoming();});
 document.getElementById('search').oninput=render;
 document.getElementById('fashionF').onchange=render;
 document.getElementById('upSearch').oninput=renderUpcoming;
-sb.channel('btkt-rt').on('postgres_changes',{event:'*',schema:'public',table:TABLE},()=>loadData()).subscribe();
+sb.channel('btkt-rt').on('postgres_changes',{event:'*',schema:'public',table:TABLE},async()=>{await loadData();afterMBChange(false);}).subscribe();
 loadData();
 </script>
 </body>
