@@ -1276,22 +1276,60 @@ function sPlaceCT(){
 function sRestCT(){NS.forEach(e=>{for(let d=2;d<=SDAYS;d++){if(SG[e.id][d]&&SG[e.id][d].ct&&!(SG[e.id][d-1]&&SG[e.id][d-1].ct)&&!SG[e.id][d-1])SG[e.id][d-1]='w';}for(let d=1;d<SDAYS;d++){if(SG[e.id][d]&&SG[e.id][d].ct&&!(SG[e.id][d+1]&&SG[e.id][d+1].ct)&&!SG[e.id][d+1])SG[e.id][d+1]='w';}});}
 function sFillRest(){NS.forEach(e=>{let st=0;for(let d=1;d<=SDAYS;d++){const v=SG[e.id][d];if(v==='w'||v==='O'||v==='A'){st=0;continue;}if(v){st++;continue;}st++;if(st>=6){const pw=SG[e.id][d-1]==='w';if(sWC(e.id)<MAXW&&sWD(d)<capW()&&!pw){SG[e.id][d]='w';st=0;}}}});
   NS.forEach(e=>{let rs=0;for(let d=1;d<=SDAYS;d++){const v=SG[e.id][d];if(v==='w'||v==='O'||v==='A')rs++;}let need=Math.max(0,4-rs);for(let d=4;d<=SDAYS-1&&need>0;d++){if(!SG[e.id][d]&&SG[e.id][d-1]!=='w'&&SG[e.id][d+1]!=='w'){if(sWC(e.id)<MAXW&&sWD(d)<capW()){SG[e.id][d]='w';need--;d+=2;}}}});}
+let SHIFT_WARN=[];
 function sFillShifts(){const ls={},ss={},lastPM={};NS.forEach(e=>{ls[e.id]='';ss[e.id]=0;lastPM[e.id]=-99;});
-  for(let d=1;d<=SDAYS;d++)[1,2,3].forEach(z=>{const w=NS.filter(e=>e.zone===z&&!SG[e.id][d]);const k=w.length;if(!k)return;let p=k===1?1:Math.min(2,Math.max(1,Math.round(k/3)));
+  SHIFT_WARN=[];
+  const isBT=e=>e.team!=='IT'; // bảo trì (không tính IT Helpdesk)
+  for(let d=1;d<=SDAYS;d++)[1,2,3].forEach(z=>{const w=NS.filter(e=>e.zone===z&&!SG[e.id][d]);const k=w.length;if(!k)return;
+    const bt=w.filter(isBT);
+    let p=k===1?1:Math.min(2,Math.max(1,Math.round(k/3)));
     const forbid=new Set(w.filter(e=>ls[e.id]==='PM26'&&ss[e.id]>=3).map(e=>e.id));
     const forced=w.filter(e=>ls[e.id]==='HC5'&&ss[e.id]>=3&&!forbid.has(e.id));
     const pmSet=new Set();forced.forEach(e=>{if(pmSet.size<p)pmSet.add(e.id);});
     const rest=w.filter(e=>!pmSet.has(e.id)&&!forbid.has(e.id)).sort((a,b)=>lastPM[a.id]-lastPM[b.id]); // xoay đều: lâu nhất chưa trực PM26 trước
     for(const e of rest){if(pmSet.size>=p)break;pmSet.add(e.id);}
+    // ===== RÀNG BUỘC: mỗi ca của Zone phải có ≥1 BẢO TRÌ =====
+    if(bt.length>=2){
+      const btPM=()=>bt.filter(e=>pmSet.has(e.id));
+      const btHC=()=>bt.filter(e=>!pmSet.has(e.id));
+      if(btPM().length===0){ // ca chiều chưa có bảo trì -> đưa 1 BT vào PM
+        const cand=btHC().filter(e=>!forbid.has(e.id)).sort((a,b)=>lastPM[a.id]-lastPM[b.id])[0]
+                 || btHC().sort((a,b)=>lastPM[a.id]-lastPM[b.id])[0];
+        if(cand){ // nhường chỗ: đẩy 1 IT ra khỏi PM nếu PM đã đủ số
+          if(pmSet.size>=p){const it=w.find(e=>!isBT(e)&&pmSet.has(e.id));if(it)pmSet.delete(it.id);}
+          pmSet.add(cand.id);}
+      }
+      if(btHC().length===0){ // ca HC chưa có bảo trì -> rút 1 BT khỏi PM
+        const cand=btPM().sort((a,b)=>lastPM[b.id]-lastPM[a.id])[0];
+        if(cand){pmSet.delete(cand.id);
+          if(pmSet.size<1){const it=w.find(e=>!isBT(e)&&!pmSet.has(e.id));if(it)pmSet.add(it.id);}}
+      }
+    }else if(bt.length===1){
+      pmSet.delete(bt[0].id); // 1 bảo trì duy nhất -> giữ ca HC (giờ hành chính)
+      SHIFT_WARN.push(`ngày ${d} Z${z}: chỉ 1 bảo trì ở nhà, ca chiều thiếu bảo trì`);
+    }else{
+      SHIFT_WARN.push(`ngày ${d} Z${z}: không có bảo trì ở nhà`);
+    }
     w.forEach(e=>{const s=pmSet.has(e.id)?'PM26':'HC5';SG[e.id][d]=s;if(s==='PM26')lastPM[e.id]=d;if(ls[e.id]===s)ss[e.id]++;else ss[e.id]=1;ls[e.id]=s;});});}
 function sIsShift(v){return v==='HC5'||v==='PM26';}
 function sStreakEnd(id,d){const s=SG[id][d];if(!sIsShift(s))return 0;let c=1;for(let k=d-1;k>=1;k--){if(SG[id][k]===s)c++;else break;}return c;}
 function sMaxRun(id,dd,sft){let l=0;for(let k=dd-1;k>=1;k--){if(SG[id][k]===sft)l++;else break;}let r=0;for(let k=dd+1;k<=SDAYS;k++){if(SG[id][k]===sft)r++;else break;}return l+1+r;}
+// sau khi hoán ca x↔y ở Zone z ngày dd, mỗi ca vẫn còn ≥1 bảo trì?
+function sBTok(z,dd,x,y){
+  const bt=NS.filter(e=>e.zone===z&&e.team!=='IT'&&sIsShift(SG[e.id][dd]));
+  if(bt.length<2)return true; // không đủ bảo trì để phủ 2 ca -> không chặn
+  let hc=0,pm=0;
+  bt.forEach(e=>{let s=SG[e.id][dd];
+    if(e.id===x.id)s=(SG[x.id][dd]==='HC5')?'PM26':'HC5';
+    else if(e.id===y.id)s=(SG[y.id][dd]==='HC5')?'PM26':'HC5';
+    if(s==='HC5')hc++;else pm++;});
+  return hc>=1&&pm>=1;
+}
 function sRepairRot(){ // khử chuỗi ca >3 ngày: hoán đổi ca trong cùng Zone/ngày (giữ nguyên số ca), cùng lắm chuyển ngày thứ 4 sang O
   for(let pass=0;pass<20;pass++){let fixed=0;
     for(let d=SDAYS;d>=4;d--)[1,2,3].forEach(z=>{const wk=NS.filter(e=>e.zone===z&&sIsShift(SG[e.id][d]));
       wk.forEach(x=>{ if(sStreakEnd(x.id,d)>3){ for(const dd of [d,d-1,d-2,d-3]){ if(dd<1)continue; const cur=SG[x.id][dd]; if(!sIsShift(cur))continue; const other=cur==='HC5'?'PM26':'HC5';
-        const y=NS.find(w=>w.zone===z&&w.id!==x.id&&SG[w.id][dd]===other&&sMaxRun(x.id,dd,other)<=3&&sMaxRun(w.id,dd,cur)<=3);
+        const y=NS.find(w=>w.zone===z&&w.id!==x.id&&SG[w.id][dd]===other&&sMaxRun(x.id,dd,other)<=3&&sMaxRun(w.id,dd,cur)<=3&&sBTok(z,dd,x,w));
         if(y){const t=SG[x.id][dd];SG[x.id][dd]=SG[y.id][dd];SG[y.id][dd]=t;fixed++;break;} } } });
     });
     if(!fixed)break;}
@@ -1318,7 +1356,8 @@ function genSchedule(){
   const na=(useTour&&recs.length)?tourUnassigned():[];
   document.getElementById('schMsg').innerHTML=(notes.length?('⚠️ '+notes.join('; ')+' · '):'✓ ')+src+' · bấm ô để sửa'
     +(MB_SYNCED?` · <span style="color:#0f766e">🔄 đã cập nhật ${MB_SYNCED} công trình theo lịch khai trương mới</span>`:'')
-    +(na.length?` · <span style="color:#0f766e">${na.length} địa điểm chưa giao ai: ${na.map(r=>r.ten.slice(0,18)).join(' · ')}</span>`:'');
+    +(na.length?` · <span style="color:#0f766e">${na.length} địa điểm chưa giao ai: ${na.map(r=>r.ten.slice(0,18)).join(' · ')}</span>`:'')
+    +(SHIFT_WARN.length?` · <span style="color:#b45309" title="${SHIFT_WARN.join(' · ')}">⚠️ ${SHIFT_WARN.length} ngày-Zone không đủ bảo trì cho 2 ca (${SHIFT_WARN.slice(0,2).join('; ')}${SHIFT_WARN.length>2?'…':''})</span>`:'');
   renderSched();
   if(cmpOn)refreshCompare();
   if(dfl.length&&!mbAutoDone&&!mbSyncBusy){mbAutoDone=true;afterMBChange(true);}  // còn lệch thì tự cập nhật, không hỏi
@@ -1591,7 +1630,7 @@ function rulesHTML(){return `<div style="background:#f7faf8;border:1px solid var
   <b>2. Trọn chuyến:</b> bắt buộc <b>+1 ngày w trước và +1 ngày w sau</b> khối thi công (vd Shop = 1+9+1 = 11 ngày).<br>
   <b>3. Bố trí người:</b> vòng xoay đều — ai <b>ít chuyến / lâu chưa đi</b> thì ưu tiên (không theo skill). Chi nhánh ở <b>HCM / Bình Dương / Đồng Nai</b> ưu tiên người <b>cùng Zone (gần)</b> để tối ưu chi phí.<br>
   <b>4. Nghỉ:</b> tối đa <b>${MAXW} ngày w/tháng</b>; tổng người nghỉ w <b>mỗi ngày ≤ ${capW()}</b> (tổng NV ÷ 7); hạn chế nghỉ w liên tục. <b>A (phép) & O (nghỉ bù) lấy từ WSHR</b> — giữ nguyên, không tự sinh; lịch w/ca xếp quanh các ngày nghỉ này.<br>
-  <b>5. Ca (HC5 8–17h / PM26 13–22h):</b> mỗi Zone mỗi ngày <b>đủ cả 2 ca</b> (khi ≥2 người); Zone chỉ còn 1 người → <b>PM26</b>; <b>≤ 2 PM26/Zone/ngày</b>; cân số người mỗi ca; <b>xoay ca không quá 3 ngày liên tục</b>.<br>
+  <b>5. Ca (HC5 8–17h / PM26 13–22h):</b> mỗi Zone mỗi ngày <b>đủ cả 2 ca</b>, và <b>mỗi ca phải có ít nhất 1 BẢO TRÌ</b> (IT Helpdesk không tính thay); Zone chỉ còn 1 bảo trì → giữ ca <b>HC5</b> và báo cảnh báo; <b>≤ 2 PM26/Zone/ngày</b>; cân số người mỗi ca; <b>xoay ca không quá 3 ngày liên tục</b>.<br>
   <b>6. Zone chi nhánh</b> tự đoán theo địa chỉ; mỗi công trình 1 màu; <b>w/A/O</b> chữ đỏ; ô sửa tay được giữ nguyên.
 </div>`;}
 let nsFT='', nsFP='';
