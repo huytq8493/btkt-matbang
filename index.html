@@ -421,6 +421,7 @@
           <th data-k="khai">Khai trương</th>
           <th data-k="rec" title="Ngày nhận nhà chậm nhất để kịp tiến độ (= khai trương − số ngày thi công − 1)">NN đề xuất</th>
           <th data-k="thicong" class="tcenter">Thi công</th>
+          <th class="tcenter" title="Tích = đã sắp lịch thi công, tool sẽ không tự đổi ngày/người nữa">🔒 Chốt<br>lịch TC</th>
           <th data-k="tiendo" class="tcenter col-prog">Tiến độ</th>
           <th data-k="order">Tình trạng</th>
         </tr></thead>
@@ -519,7 +520,7 @@
         <div class="tablewrap" style="max-height:46vh"><table id="cmpGridTT" class="cmpg"></table></div>
       </div>
       <div id="tourWrap" style="display:none">
-        <div style="font-size:12.5px;color:var(--muted);margin-bottom:8px">Ma trận phân công tour: <b>hàng = công trình</b>, <b>cột = nhân viên</b>. Phân công lấy từ <b>ma trận TOUR</b>, còn <b>ngày khai trương luôn lấy theo Kế hoạch mặt bằng</b> — thêm/sửa/xoá địa điểm ở trang kế hoạch là ma trận và lịch làm việc TỰ cập nhật ngay, không cần bấm gì (bấm <b>🔄 Đồng bộ ngày theo mặt bằng</b> để ghi luôn vào ma trận). <b>Bắt đầu</b> = ngày Bảo trì đi thi công = Khai trương − <b>14</b> (có Fashion) / − <b>12</b> (không). <b style="color:var(--green-d)">Bấm vào ô để giao / bỏ người</b> — sửa xong tự áp ngay vào lịch làm việc. <b>Cột nhân viên</b> chỉ gồm người có tick <b>Đi thi công</b> ở mục 👥 Quản lý nhân sự. <span style="background:#fef9c3;color:#854d0e;padding:1px 5px;border-radius:4px">Đ</span> điện · <span style="background:#e0f2fe;color:#075985;padding:1px 5px;border-radius:4px">L</span> lạnh · <span style="background:#ccfbf1;color:#0f766e;padding:1px 5px;border-radius:4px">IT</span></div>
+        <div style="font-size:12.5px;color:var(--muted);margin-bottom:8px">Ma trận phân công tour: <b>hàng = công trình</b>, <b>cột = nhân viên</b>. Phân công lấy từ <b>ma trận TOUR</b>, còn <b>ngày khai trương luôn lấy theo Kế hoạch mặt bằng</b> — thêm/sửa/xoá địa điểm ở trang kế hoạch là ma trận và lịch làm việc TỰ cập nhật ngay, không cần bấm gì (bấm <b>🔄 Đồng bộ ngày theo mặt bằng</b> để ghi luôn vào ma trận). <b>Bắt đầu</b> = ngày Bảo trì đi thi công = Khai trương − <b>14</b> (có Fashion) / − <b>12</b> (không). <b style="color:var(--green-d)">Bấm vào ô để giao / bỏ người</b> — sửa xong tự áp ngay vào lịch làm việc. Mặt bằng gắn <b>🔒 đã chốt</b> (tích ở bảng mặt bằng) sẽ <b>không bị tool tự đổi ngày/người</b>, chỉ sửa được bằng tay. <b>Cột nhân viên</b> chỉ gồm người có tick <b>Đi thi công</b> ở mục 👥 Quản lý nhân sự. <span style="background:#fef9c3;color:#854d0e;padding:1px 5px;border-radius:4px">Đ</span> điện · <span style="background:#e0f2fe;color:#075985;padding:1px 5px;border-radius:4px">L</span> lạnh · <span style="background:#ccfbf1;color:#0f766e;padding:1px 5px;border-radius:4px">IT</span></div>
         <div class="tablewrap" style="max-height:74vh"><table id="tourGrid"></table></div>
       </div>
     </div>
@@ -637,7 +638,7 @@ async function loadData(){
       else if(tre>0){cat='late';label='Trễ '+tre+' ngày';}
       else{cat='soon';label='Sắp khai trương';}}
     const isLate=nhanS&&(need-thicong)>0;
-    return {id:row.id,stt:row.stt,ten:row.ten,fashion,nhanS,khaiS,nhan,khai,thicong,need,tre,cat,label,isLate,an:!!row.an,zaloLink:row.zalo_link||'',cnCode:row.cn_code||'',stages,tien_do};
+    return {id:row.id,stt:row.stt,ten:row.ten,fashion,nhanS,khaiS,nhan,khai,thicong,need,tre,cat,label,isLate,an:!!row.an,chot:!!row.chot_lich,zaloLink:row.zalo_link||'',cnCode:row.cn_code||'',stages,tien_do};
   });
   MBLINK={};mbAutoDone=false;MB_SYNCED=0;
   computeKPI();renderTop();renderUpcoming();render();
@@ -790,11 +791,12 @@ function render(){
       <td data-label="Khai trương"><b>${fmt(r.khai)}</b></td>
       <td data-label="NN đề xuất">${r.khai?`<span class="nn-rec">${fmt(minus(r.khai,r.need+1))}</span>`:'<span class="dim">—</span>'}</td>
       <td class="tcenter" data-label="Thi công">${tc}</td>
+      <td class="tcenter" data-label="Chốt lịch TC"><input type="checkbox" style="width:17px;height:17px;cursor:pointer" ${r.chot?'checked':''} onchange="setChot(${r.id},this.checked)" title="Đã sắp lịch thi công — không cho tool tự đổi ngày/người nữa"></td>
       <td class="tcenter col-prog" data-label="Tiến độ">${progCell(r)}</td>
       <td data-label="Tình trạng">${statusCell}</td>
     </tr>`;}).join('');
   const hc=hiddenCount();
-  if(hc)bodyHTML+=`<tr><td colspan="9" style="text-align:center;padding:9px;background:#fafafa;border-top:1px dashed var(--line)"><a class="act" style="cursor:pointer;color:var(--muted2)" onclick="showHidden=!showHidden;render()">${showHidden?'▲ Ẩn bớt':'▼ Hiện'} ${hc} mặt bằng đã ẩn</a> <span class="dim" style="font-size:11px">— vẫn lưu & dùng để xếp lịch làm việc</span></td></tr>`;
+  if(hc)bodyHTML+=`<tr><td colspan="10" style="text-align:center;padding:9px;background:#fafafa;border-top:1px dashed var(--line)"><a class="act" style="cursor:pointer;color:var(--muted2)" onclick="showHidden=!showHidden;render()">${showHidden?'▲ Ẩn bớt':'▼ Hiện'} ${hc} mặt bằng đã ẩn</a> <span class="dim" style="font-size:11px">— vẫn lưu & dùng để xếp lịch làm việc</span></td></tr>`;
   document.getElementById('tbody').innerHTML=bodyHTML;
 }
 
@@ -862,6 +864,18 @@ async function restoreMatBang(id){
   const {error}=await sb.from(TABLE).update({an:false}).eq('id',id);
   if(error){alert('Lỗi: '+error.message);return;}
   await loadData();afterMBChange(true);
+}
+// ĐÃ SẮP LỊCH THI CÔNG (chốt): tool không tự đổi ngày/người cho mặt bằng này nữa
+async function setChot(id,v){
+  const r=recs.find(x=>x.id===id);
+  const {error}=await sb.from(TABLE).update({chot_lich:!!v}).eq('id',id);
+  if(error){alert('Lỗi: '+error.message);render();return;}
+  if(r)r.chot=!!v;
+  render();
+  if(tourOn)renderTour();
+  const mv=document.getElementById('schMonth');if(mv&&mv.value)genSchedule();
+  toast(v?`🔒 Đã chốt lịch thi công: ${r?r.ten.slice(0,28):''} — tool sẽ không tự đổi nữa`
+         :`🔓 Đã bỏ chốt: ${r?r.ten.slice(0,28):''} — tool được phép sắp lại`);
 }
 
 // ===== TIẾN ĐỘ THI CÔNG =====
@@ -1122,7 +1136,7 @@ function tourEff(t){ // NGÀY hiệu lực của 1 dòng ma trận = ngày trong
 function tourDiffs(){ // công trình trong ma trận lệch NGÀY so với kế hoạch mặt bằng (đây là phần đồng bộ được)
   const seen={},out=[];
   TOUR_ALL.forEach(t=>{if(!t.khai_truong)return;const k=t.cong_trinh+'|'+t.khai_truong;if(seen[k])return;seen[k]=1;
-    const E=tourEff(t);if(!E.mb||E.mb.an||E.kt===t.khai_truong)return;   // địa điểm ẩn thì thôi, không sửa ngày nữa
+    const E=tourEff(t);if(!E.mb||E.mb.an||E.mb.chot||E.kt===t.khai_truong)return;   // địa điểm ẩn / ĐÃ CHỐT LỊCH thì không sửa ngày nữa
     out.push({cong_trinh:t.cong_trinh,mb:E.mb.ten,ktCu:t.khai_truong,ktMoi:E.kt,fa:E.fa});});
   return out;
 }
@@ -1261,10 +1275,33 @@ function sWC(id){let c=0;for(let d=1;d<=SDAYS;d++)if(SG[id][d]==='w')c++;return 
 function sWD(d){let c=0;NS.forEach(e=>{if(SG[e.id][d]==='w')c++;});return c;}
 const MAXW=4; function capW(){return Math.max(3,Math.ceil(NS.length/7));}
 function sRest(id,d){if(sWC(id)<MAXW&&sWD(d)<capW()&&SG[id][d-1]!=='w')SG[id][d]='w';}
+// mặt bằng ĐÃ CHỐT: đặt lịch theo đúng người trong ma trận TOUR, không cho tự bốc lại
+function sPlaceChot(){
+  const done=new Set();
+  const chotTen=new Set(recs.filter(r=>r.chot).map(r=>r.ten));
+  if(!chotTen.size||!TOUR_ALL.length)return done;
+  const by={};
+  TOUR_ALL.forEach(t=>{if(!t.khai_truong)return;const E=tourEff(t);
+    const ten=E.mb?E.mb.ten:t.cong_trinh;if(!chotTen.has(ten))return;
+    const k=t.cong_trinh+'|'+E.kt;(by[k]=by[k]||{ten:t.cong_trinh,ktS:E.kt,fa:E.fa,names:[]}).names.push(t.ten);});
+  Object.values(by).forEach(o=>{
+    const p=o.ktS.split('-').map(Number);const kt=new Date(p[0],p[1]-1,p[2]);
+    const bt=[];{const st=new Date(kt);st.setDate(kt.getDate()-(o.fa?14:12));
+      for(let d=new Date(st);d<kt;d.setDate(d.getDate()+1))if(d.getMonth()+1===SM&&d.getFullYear()===SY)bt.push(d.getDate());}
+    const it=sWindowIT(o.ktS,o.fa,isLocal(o.ten));
+    if(!bt.length&&!it.length)return;
+    const short=shortName(o.ten);
+    o.names.forEach(nm=>{const e=tourNS(nm);if(!e)return;
+      (e.team==='IT'?it:bt).forEach(d=>{if(!SG[e.id][d]||SG[e.id][d]==='w')SG[e.id][d]={ct:1,b:short};});});
+    done.add(short);});
+  return done;
+}
 function sPlaceCT(){
   let notes=[];const trip={},last={};NS.forEach(e=>{trip[e.id]=0;last[e.id]=-99;});
+  const locked=sPlaceChot();   // giữ nguyên các mặt bằng đã chốt lịch
   const pE=NS.filter(e=>goCT(e)&&/Điện/.test(e.vitri||'')),pC=NS.filter(e=>goCT(e)&&/Lạnh/.test(e.vitri||'')),pI=NS.filter(e=>goCT(e)&&e.team==='IT');
   monthOpenings().sort((a,b)=>a.date.localeCompare(b.date)).forEach(o=>{
+    if(locked.has(o.short))return;   // đã chốt → bỏ qua, không bốc người lại
     const btW=sWindow(o.date,BTd[o.type]),itW=sWindowIT(o.date,o.type>=1,o.local);const sd=btW.length?btW[0]:1;const as=new Set();
     const btWE=sWindowE(o.date,BTd[o.type]); // cửa sổ ngắn hơn 1 ngày dành cho NV vị trí Điện thuần
     const pick=(pool,daysFor,lab)=>{let c=pool.filter(e=>!as.has(e.id)&&sFree(e.id,daysFor(e)));if(!c.length){notes.push(o.short+':thiếu '+lab);return;}
@@ -1551,7 +1588,9 @@ function renderTour(){
     const fb=o.fashion?`<span class="badge b-fashion">${o.fashion===2?'S+F+C':'S+F'}</span>`:'<span class="badge b-shop">Shop</span>';
     const wb=(o.lech?` <span class="badge" style="background:#e0f2fe;color:#075985" title="Đã tự đổi từ ${isoToVN(o.lech)} sang ${isoToVN(o.ktS)} theo kế hoạch mặt bằng">đã dời từ ${isoToVN(o.lech)}</span>`:'')
       +(o.moi?' <span class="badge" style="background:#dcfce7;color:#166534" title="Mặt bằng có trong kế hoạch nhưng chưa giao ai — bấm ô để giao người">chưa giao ai</span>':'');
-    body+=`<tr class="${o.khai<TODAY?'past':''}"><td class="cn">${o.ten}${wb}${o.an?' <span class="badge" style="background:#f1f5f9;color:#64748b">ẩn</span>':''}</td><td>${fb}</td><td>${fmt(o.start)}</td><td><b>${fmt(o.khai)}</b></td>${cells}</tr>`;});
+    const lockMB=recs.find(r=>r.ten===(o.mbTen||o.ten))||recs.find(r=>r.ten===o.ten);
+    const lb=(lockMB&&lockMB.chot)?' <span class="badge" style="background:#fef3c7;color:#92400e;border-color:#fde68a" title="Đã chốt lịch thi công — tool không tự đổi ngày/người">🔒 đã chốt</span>':'';
+    body+=`<tr class="${o.khai<TODAY?'past':''}"><td class="cn">${o.ten}${lb}${wb}${o.an?' <span class="badge" style="background:#f1f5f9;color:#64748b">ẩn</span>':''}</td><td>${fb}</td><td>${fmt(o.start)}</td><td><b>${fmt(o.khai)}</b></td>${cells}</tr>`;});
   document.getElementById('tourGrid').innerHTML='<thead>'+gh+nh+'</thead><tbody>'+body+'</tbody>';
   // người KHÔNG đi thi công mà vẫn còn tên trong phân công → nhắc để dọn
   const noGo=NS.filter(e=>!goCT(e));
