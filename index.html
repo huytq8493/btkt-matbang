@@ -476,7 +476,7 @@
         <button class="btn-reload" id="srcBtn" onclick="toggleSrc()">🗂️ Nguồn: ma trận TOUR</button>
         <button class="btn-reload" id="cmpBtn" onclick="toggleCompare()">🔍 So sánh thực tế</button>
         <button class="btn-reload" id="tourBtn" onclick="toggleTour()">🗂️ Ma trận TOUR</button>
-        <button class="btn-reload" id="syncBtn" onclick="tourSyncBtn()">🔄 Đồng bộ ngày theo mặt bằng</button>
+        <button class="btn-reload" id="syncBtn" onclick="tourSyncBtn()" title="Lấy ngày khai trương + loại + tên từ danh sách mặt bằng ghi xuống ma trận TOUR. Giữ nguyên người đã phân công. Bỏ qua mặt bằng đã chốt lịch.">🔄 Cập nhật mặt bằng vào tour</button>
         <button class="btn-save" onclick="exportSchedHR()">📥 Xuất file lịch (hệ thống HR)</button>
         <button class="btn-reload" onclick="exportSchedCSV()">⬇️ CSV</button>
         <button class="btn-reload" onclick="toggleNS()">👥 Quản lý nhân sự</button>
@@ -1126,18 +1126,23 @@ function tourMBFind(name){ // khớp tên công trình trong ma trận với m�
   MBLINK[name]=out;return out;
 }
 function tourLive(){const d=new Date(TODAY);d.setDate(d.getDate()-14);return tourYMD(d);} /* chỉ chuyến từ 14 ngày trước trở đi mới lấy ngày theo mặt bằng — KHÔNG sửa lịch sử */
-function tourEff(t){ // NGÀY hiệu lực của 1 dòng ma trận = ngày trong kế hoạch mặt bằng. LOẠI vẫn giữ theo ma trận (chỉ cảnh báo khi lệch)
-  const kt0=t.khai_truong||'',fa=(t.fashion==='Có');
-  if(kt0<tourLive())return {kt:kt0,fa,mb:null,lech:'',faMB:null};
-  const r=tourMBFind(t.cong_trinh);if(!r)return {kt:kt0,fa,mb:null,lech:'',faMB:null};
-  const kt=mbKtISO(r)||kt0;
-  return {kt,fa,mb:r,lech:(kt!==kt0)?kt0:'',faMB:(r.fashion>=1)};
+function tourEff(t){ // THÔNG TIN hiệu lực của 1 dòng ma trận = lấy từ kế hoạch mặt bằng (ngày + loại). Người thì giữ nguyên.
+  const kt0=t.khai_truong||'',fa0=(t.fashion==='Có');
+  if(kt0<tourLive())return {kt:kt0,fa:fa0,mb:null,lech:'',faMB:null,lechFa:false};
+  const r=tourMBFind(t.cong_trinh);if(!r)return {kt:kt0,fa:fa0,mb:null,lech:'',faMB:null,lechFa:false};
+  const kt=mbKtISO(r)||kt0, faMB=(r.fashion>=1);
+  const fa=r.chot?fa0:faMB;                      // đã chốt lịch → giữ nguyên theo ma trận
+  return {kt:r.chot?kt0:kt,fa,mb:r,lech:(!r.chot&&kt!==kt0)?kt0:'',faMB,lechFa:(!r.chot&&faMB!==fa0)};
 }
-function tourDiffs(){ // công trình trong ma trận lệch NGÀY so với kế hoạch mặt bằng (đây là phần đồng bộ được)
+function tourDiffs(){ // THÔNG TIN mặt bằng khác với ma trận → phần sẽ ghi đè xuống ma trận (ngày · loại · tên). NGƯỜI giữ nguyên.
   const seen={},out=[];
   TOUR_ALL.forEach(t=>{if(!t.khai_truong)return;const k=t.cong_trinh+'|'+t.khai_truong;if(seen[k])return;seen[k]=1;
-    const E=tourEff(t);if(!E.mb||E.mb.an||E.mb.chot||E.kt===t.khai_truong)return;   // địa điểm ẩn / ĐÃ CHỐT LỊCH thì không sửa ngày nữa
-    out.push({cong_trinh:t.cong_trinh,mb:E.mb.ten,ktCu:t.khai_truong,ktMoi:E.kt,fa:E.fa});});
+    const E=tourEff(t);if(!E.mb||E.mb.an||E.mb.chot)return;              // địa điểm ẩn / ĐÃ CHỐT LỊCH thì không đụng tới
+    const faCur=(t.fashion==='Có');
+    const doiNgay=(E.kt!==t.khai_truong), doiLoai=(E.faMB!==faCur), doiTen=(E.mb.ten!==t.cong_trinh);
+    if(!doiNgay&&!doiLoai&&!doiTen)return;
+    out.push({cong_trinh:t.cong_trinh,tenMoi:E.mb.ten,mb:E.mb.ten,
+              ktCu:t.khai_truong,ktMoi:E.kt,faCu:faCur,fa:E.faMB,doiNgay,doiLoai,doiTen});});
   return out;
 }
 function tourTypeDiffs(){ // lệch LOẠI (Shop / Shop+Fashion) — KHÔNG tự sửa vì đổi loại là đổi số ngày thi công
@@ -1154,12 +1159,15 @@ function tourNoMatch(){ // công trình trong ma trận không khớp được m
     if(!tourEff(t).mb)out.push(t.cong_trinh);});
   return out;
 }
-async function tourApplySync(){ // ghi ngày mới của mặt bằng vào btkt_tour (khai_truong + bat_dau + fashion)
+async function tourApplySync(){ // ghi THÔNG TIN mặt bằng xuống btkt_tour: ngày + ngày bắt đầu + loại + tên. GIỮ NGUYÊN người.
   MBLINK={};const df=tourDiffs();if(!df.length)return [];
   for(const d of df){
-    const bd=new Date(d.ktMoi+'T00:00:00');bd.setDate(bd.getDate()-(d.fa?14:12));
-    const {error}=await sb.from('btkt_tour')
-      .update({khai_truong:d.ktMoi,bat_dau:tourYMD(bd)})
+    const bd=new Date(d.ktMoi+'T00:00:00');bd.setDate(bd.getDate()-(d.fa?14:12)); // bắt đầu tính theo LOẠI của mặt bằng
+    const patch={khai_truong:d.ktMoi,bat_dau:tourYMD(bd),fashion:d.fa?'Có':'Không'};
+    // đổi tên công trình theo mặt bằng, trừ khi đụng một nhóm khác đã có sẵn tên+ngày đó
+    const dung=TOUR_ALL.some(x=>x.cong_trinh===d.tenMoi&&x.khai_truong===d.ktMoi&&x.cong_trinh!==d.cong_trinh);
+    if(d.doiTen&&!dung)patch.cong_trinh=d.tenMoi;
+    const {error}=await sb.from('btkt_tour').update(patch)
       .eq('cong_trinh',d.cong_trinh).eq('khai_truong',d.ktCu);
     if(error){alert('Lỗi đồng bộ: '+error.message);return [];}
   }
@@ -1167,8 +1175,12 @@ async function tourApplySync(){ // ghi ngày mới của mặt bằng vào btkt_
 }
 function tourMsg(df){
   const el=document.getElementById('schMsg');if(!el)return;
-  el.innerHTML='🔄 Đã đồng bộ '+df.length+' công trình theo kế hoạch mặt bằng: '
-    +df.map(d=>`<b>${d.cong_trinh.slice(0,26)}</b> ${isoToVN(d.ktCu)}→${isoToVN(d.ktMoi)}`).join(' · ');
+  const one=d=>{const p=[];
+    if(d.doiNgay)p.push(`${isoToVN(d.ktCu)}→${isoToVN(d.ktMoi)}`);
+    if(d.doiLoai)p.push(`${d.faCu?'S+F':'Shop'}→${d.fa?'S+F':'Shop'}`);
+    if(d.doiTen)p.push('đổi tên');
+    return `<b>${d.cong_trinh.slice(0,24)}</b> ${p.join(', ')}`;};
+  el.innerHTML='🔄 Đã cập nhật '+df.length+' công trình theo mặt bằng (giữ nguyên người): '+df.map(one).join(' · ');
 }
 function tourUnassigned(){ // địa điểm trong kế hoạch (còn tới) mà chưa giao ai trong ma trận
   const linked=new Set();TOUR_ALL.forEach(t=>{const E=tourEff(t);if(E.mb)linked.add(E.mb.id);});
@@ -1203,10 +1215,10 @@ async function tourSyncBtn(){
   if(tourOn)renderTour();
   genSchedule();
   if(df.length)tourMsg(df);
-  else el.textContent='✓ Ma trận đã khớp ngày khai trương của kế hoạch mặt bằng';
-  if(nm.length)el.innerHTML+=`<br><span style="color:#b45309">⚠️ ${nm.length} công trình không khớp tên mặt bằng nào, phải sửa ngày tay: ${nm.map(x=>x.slice(0,24)).join(' · ')}</span>`;
-  const td=tourTypeDiffs();
-  if(td.length)el.innerHTML+=`<br><span style="color:#b45309">⚠️ ${td.length} công trình lệch LOẠI (không tự sửa vì đổi loại là đổi số ngày thi công — sửa tay ở bên nào đúng): ${td.map(x=>x.cong_trinh.slice(0,22)+' ma trận '+x.maTran+' / kế hoạch '+x.keHoach).join(' · ')}</span>`;
+  else el.textContent='✓ Ma trận đã khớp thông tin mặt bằng (ngày · loại · tên)';
+  if(nm.length)el.innerHTML+=`<br><span style="color:#b45309">⚠️ ${nm.length} công trình không khớp tên mặt bằng nào, phải sửa tay: ${nm.map(x=>x.slice(0,24)).join(' · ')}</span>`;
+  const lk=recs.filter(r=>r.chot).length;
+  if(lk)el.innerHTML+=`<br><span style="color:#92400e">🔒 Bỏ qua ${lk} mặt bằng đã chốt lịch thi công (không đồng bộ).</span>`;
 }
 function tourNS(ten){const t=TOUR_ALIAS[ten]||ten;return NS.find(e=>e.ten===t);}
 // đặt ngày công tác theo phân công tour; trả về ghi chú
@@ -1500,7 +1512,7 @@ function tourAssign(){
       const E=tourEff(t);if(E.mb&&E.mb.an)return;                       // địa điểm đã ẩn → không hiện trong ma trận
       const kt=E.kt,k=t.cong_trinh+'|'+kt;                               // hiển thị theo kế hoạch mặt bằng
       if(!by[k]){const p=kt.split('-').map(Number);
-        by[k]={key:k,ktS:kt,ktDB:t.khai_truong,lech:E.lech,mbTen:E.mb?E.mb.ten:'',
+        by[k]={key:k,ktS:kt,ktDB:t.khai_truong,lech:E.lech,lechFa:E.lechFa,mbTen:E.mb?E.mb.ten:'',
                stt:t.stt,ten:t.cong_trinh,khai:new Date(p[0],p[1]-1,p[2]),fashion:E.fa?1:0,names:[]};}
       by[k].names.push(t.ten);});
     // Mặt bằng đã có ngày khai trương nhưng chưa ai trong ma trận → thêm dòng trống để giao người
@@ -1586,7 +1598,8 @@ function renderTour(){
       const attr=editable?` onclick="tourToggle('${K}',${e.id})" title="${e.ten} — ${String(o.ten).slice(0,30)} · bấm để ${on?'BỎ':'GIAO'}"`:'';
       cells+=`<td class="${cls}"${attr}>${m}</td>`;});
     const fb=o.fashion?`<span class="badge b-fashion">${o.fashion===2?'S+F+C':'S+F'}</span>`:'<span class="badge b-shop">Shop</span>';
-    const wb=(o.lech?` <span class="badge" style="background:#e0f2fe;color:#075985" title="Đã tự đổi từ ${isoToVN(o.lech)} sang ${isoToVN(o.ktS)} theo kế hoạch mặt bằng">đã dời từ ${isoToVN(o.lech)}</span>`:'')
+    const wb=(o.lech?` <span class="badge" style="background:#e0f2fe;color:#075985" title="Đang hiện theo mặt bằng (${isoToVN(o.ktS)}); trong ma trận còn là ${isoToVN(o.lech)} — bấm 🔄 Cập nhật mặt bằng vào tour để ghi xuống">dời từ ${isoToVN(o.lech)}</span>`:'')
+      +(o.lechFa?` <span class="badge" style="background:#fff7ed;color:#9a3412" title="Loại theo mặt bằng khác với ma trận — bấm 🔄 Cập nhật mặt bằng vào tour để ghi xuống">lệch loại</span>`:'')
       +(o.moi?' <span class="badge" style="background:#dcfce7;color:#166534" title="Mặt bằng có trong kế hoạch nhưng chưa giao ai — bấm ô để giao người">chưa giao ai</span>':'');
     const lockMB=recs.find(r=>r.ten===(o.mbTen||o.ten))||recs.find(r=>r.ten===o.ten);
     const lb=(lockMB&&lockMB.chot)?' <span class="badge" style="background:#fef3c7;color:#92400e;border-color:#fde68a" title="Đã chốt lịch thi công — tool không tự đổi ngày/người">🔒 đã chốt</span>':'';
