@@ -476,7 +476,7 @@
         <button class="btn-reload" id="srcBtn" onclick="toggleSrc()">🗂️ Nguồn: ma trận TOUR</button>
         <button class="btn-reload" id="cmpBtn" onclick="toggleCompare()">🔍 So sánh thực tế</button>
         <button class="btn-reload" id="tourBtn" onclick="toggleTour()">🗂️ Ma trận TOUR</button>
-        <button class="btn-reload" id="syncBtn" onclick="tourSyncBtn()" title="Lấy ngày khai trương + loại + tên từ danh sách mặt bằng ghi xuống ma trận TOUR. Giữ nguyên người đã phân công. Bỏ qua mặt bằng đã chốt lịch.">🔄 Cập nhật mặt bằng vào tour</button>
+        <button class="btn-reload" id="syncBtn" onclick="tourSyncBtn()" title="App đã TỰ ĐỘNG áp mặt bằng vào ma trận mỗi lần tải & mỗi khi sửa mặt bằng. Nút này chỉ để chạy lại ngay và xem chi tiết đã đổi gì.">🔄 Đồng bộ lại ngay</button>
         <button class="btn-save" onclick="exportSchedHR()">📥 Xuất file lịch (hệ thống HR)</button>
         <button class="btn-reload" onclick="exportSchedCSV()">⬇️ CSV</button>
         <button class="btn-reload" onclick="toggleNS()">👥 Quản lý nhân sự</button>
@@ -647,6 +647,7 @@ async function loadData(){
   else if(location.hash==='#lich'){ if(!booted) route(); /* đang ở trang lịch: không tự xếp lại để giữ sửa tay */ }
   else route();
   booted=true;
+  mbAutoApply();   // tự áp danh sách mặt bằng vào ma trận TOUR, không cần bấm nút
 }
 
 let showHidden=false;
@@ -1115,6 +1116,10 @@ async function loadTour(){const {data}=await sb.from('btkt_tour').select('*');TO
 // ===== ĐỒNG BỘ MA TRẬN TOUR THEO KẾ HOẠCH MẶT BẰNG (btkt_matbang là nguồn duy nhất của NGÀY) =====
 let MBLINK={};
 function mbKtISO(r){return r.khaiS?r.khaiS.split('/').reverse().join('-'):'';}
+function tourMBById(t){ // đã từng đồng bộ → có khoá mb_id, khớp chắc chắn, không phụ thuộc tên
+  if(!t||!t.mb_id)return null;
+  return recs.find(r=>r.id===t.mb_id)||null;
+}
 function tourMBFind(name){ // khớp tên công trình trong ma trận với mặt bằng; chỉ nhận khi khớp chắc và KHÔNG trùng điểm
   if(name in MBLINK)return MBLINK[name];
   const nt=mbTokens(name);let out=null;
@@ -1129,7 +1134,7 @@ function tourLive(){const d=new Date(TODAY);d.setDate(d.getDate()-14);return tou
 function tourEff(t){ // THÔNG TIN hiệu lực của 1 dòng ma trận = lấy từ kế hoạch mặt bằng (ngày + loại). Người thì giữ nguyên.
   const kt0=t.khai_truong||'',fa0=(t.fashion==='Có');
   if(kt0<tourLive())return {kt:kt0,fa:fa0,mb:null,lech:'',faMB:null,lechFa:false};
-  const r=tourMBFind(t.cong_trinh);if(!r)return {kt:kt0,fa:fa0,mb:null,lech:'',faMB:null,lechFa:false};
+  const r=tourMBById(t)||tourMBFind(t.cong_trinh);if(!r)return {kt:kt0,fa:fa0,mb:null,lech:'',faMB:null,lechFa:false};
   const kt=mbKtISO(r)||kt0, faMB=(r.fashion>=1);
   const fa=r.chot?fa0:faMB;                      // đã chốt lịch → giữ nguyên theo ma trận
   return {kt:r.chot?kt0:kt,fa,mb:r,lech:(!r.chot&&kt!==kt0)?kt0:'',faMB,lechFa:(!r.chot&&faMB!==fa0)};
@@ -1139,10 +1144,13 @@ function tourDiffs(){ // THÔNG TIN mặt bằng khác với ma trận → phầ
   TOUR_ALL.forEach(t=>{if(!t.khai_truong)return;const k=t.cong_trinh+'|'+t.khai_truong;if(seen[k])return;seen[k]=1;
     const E=tourEff(t);if(!E.mb||E.mb.an||E.mb.chot)return;              // địa điểm ẩn / ĐÃ CHỐT LỊCH thì không đụng tới
     const faCur=(t.fashion==='Có');
+    const nnMB=E.mb.nhanS?E.mb.nhanS.split('/').reverse().join('-'):null;
     const doiNgay=(E.kt!==t.khai_truong), doiLoai=(E.faMB!==faCur), doiTen=(E.mb.ten!==t.cong_trinh);
-    if(!doiNgay&&!doiLoai&&!doiTen)return;
-    out.push({cong_trinh:t.cong_trinh,tenMoi:E.mb.ten,mb:E.mb.ten,
-              ktCu:t.khai_truong,ktMoi:E.kt,faCu:faCur,fa:E.faMB,doiNgay,doiLoai,doiTen});});
+    const doiKhac=(t.mb_id!==E.mb.id)||((t.cn_code||'')!==(E.mb.cnCode||''))||((t.nhan_nha||null)!==nnMB)||((t.loai==null?null:+t.loai)!==(+E.mb.fashion||0));
+    if(!doiNgay&&!doiLoai&&!doiTen&&!doiKhac)return;
+    out.push({cong_trinh:t.cong_trinh,tenMoi:E.mb.ten,mb:E.mb.ten,mbId:E.mb.id,
+              cnCode:E.mb.cnCode||null,nhanNha:nnMB,loai:+E.mb.fashion||0,
+              ktCu:t.khai_truong,ktMoi:E.kt,faCu:faCur,fa:E.faMB,doiNgay,doiLoai,doiTen,doiKhac});});
   return out;
 }
 function tourTypeDiffs(){ // lệch LOẠI (Shop / Shop+Fashion) — KHÔNG tự sửa vì đổi loại là đổi số ngày thi công
@@ -1163,7 +1171,8 @@ async function tourApplySync(){ // ghi THÔNG TIN mặt bằng xuống btkt_tour
   MBLINK={};const df=tourDiffs();if(!df.length)return [];
   for(const d of df){
     const bd=new Date(d.ktMoi+'T00:00:00');bd.setDate(bd.getDate()-(d.fa?14:12)); // bắt đầu tính theo LOẠI của mặt bằng
-    const patch={khai_truong:d.ktMoi,bat_dau:tourYMD(bd),fashion:d.fa?'Có':'Không'};
+    const patch={khai_truong:d.ktMoi,bat_dau:tourYMD(bd),fashion:d.fa?'Có':'Không',
+                 mb_id:d.mbId,cn_code:d.cnCode,nhan_nha:d.nhanNha,loai:d.loai};
     // đổi tên công trình theo mặt bằng, trừ khi đụng một nhóm khác đã có sẵn tên+ngày đó
     const dung=TOUR_ALL.some(x=>x.cong_trinh===d.tenMoi&&x.khai_truong===d.ktMoi&&x.cong_trinh!==d.cong_trinh);
     if(d.doiTen&&!dung)patch.cong_trinh=d.tenMoi;
@@ -1179,6 +1188,7 @@ function tourMsg(df){
     if(d.doiNgay)p.push(`${isoToVN(d.ktCu)}→${isoToVN(d.ktMoi)}`);
     if(d.doiLoai)p.push(`${d.faCu?'S+F':'Shop'}→${d.fa?'S+F':'Shop'}`);
     if(d.doiTen)p.push('đổi tên');
+    if(!p.length&&d.doiKhac)p.push('gắn khoá mặt bằng / mã CN / ngày nhận nhà');
     return `<b>${d.cong_trinh.slice(0,24)}</b> ${p.join(', ')}`;};
   el.innerHTML='🔄 Đã cập nhật '+df.length+' công trình theo mặt bằng (giữ nguyên người): '+df.map(one).join(' · ');
 }
@@ -1188,6 +1198,23 @@ function tourUnassigned(){ // địa điểm trong kế hoạch (còn tới) mà
 }
 // ==== Đổi DANH SÁCH ĐỊA ĐIỂM → ma trận + lịch làm việc đi theo ngay ====
 let mbSyncBusy=false, mbAutoDone=false, MB_SYNCED=0;
+// TỰ ÁP mặt bằng vào ma trận TOUR ngay khi có dữ liệu (không cần bấm nút đồng bộ)
+async function mbAutoApply(){
+  if(mbSyncBusy||mbAutoDone)return;
+  mbAutoDone=true;mbSyncBusy=true;
+  try{
+    if(!TOUR_ALL.length)await loadTour();
+    MBLINK={};
+    const df=await tourApplySync();
+    if(df.length){
+      MB_SYNCED=df.length;
+      if(tourOn)renderTour();
+      const mv=document.getElementById('schMonth');if(mv&&mv.value)genSchedule();
+      toast('🔄 Tự cập nhật ma trận TOUR theo '+df.length+' mặt bằng (giữ nguyên người)');
+    }
+  }catch(e){console.error('mbAutoApply',e);}
+  finally{mbSyncBusy=false;}
+}
 async function afterMBChange(write){
   if(mbSyncBusy)return;mbSyncBusy=true;
   try{
