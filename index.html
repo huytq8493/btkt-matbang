@@ -1464,23 +1464,22 @@ function sFillRest(){NS.forEach(e=>{let st=0;for(let d=1;d<=SDAYS;d++){const v=S
   NS.forEach(e=>{let rs=0;for(let d=1;d<=SDAYS;d++){const v=SG[e.id][d];if(v==='w'||v==='O'||v==='A')rs++;}let need=Math.max(0,4-rs);for(let d=4;d<=SDAYS-1&&need>0;d++){if(!SG[e.id][d]&&SG[e.id][d-1]!=='w'&&SG[e.id][d+1]!=='w'){if(sWC(e.id)<MAXW&&sWD(d)<capW()){SG[e.id][d]='w';need--;d+=2;}}}});}
 // ===== ĐỦ NGƯỜI 2 CA: ngày-Zone nào ở nhà < 2 người (hoặc < 2 bảo trì) → dời ngày nghỉ w của người trong Zone sang ngày khác dư người =====
 function sTripW(id,d){const a=SG[id][d-1],b=SG[id][d+1];return (a&&a.ct)||(b&&b.ct);}   // w bắt buộc trước/sau chuyến công tác → không dời
-function sFixCoverage(){
-  const home=(z,d)=>NS.filter(e=>e.zone===z&&(!SG[e.id][d]||(isFixedHC(e)&&SG[e.id][d]==='HC5')));
-  const ok=(z,d)=>{const h=home(z,d);return h.length>=2&&h.filter(e=>e.team!=='IT').length>=Math.min(2,NS.filter(e=>e.zone===z&&e.team!=='IT').length);};
+function sFixCoverage(){ // CHỈ xét BẢO TRÌ (điện / điện lạnh) — IT Helpdesk không tính vào đủ người ca trực
+  const isBT=e=>e.team!=='IT';
+  const home=(z,d)=>NS.filter(e=>e.zone===z&&isBT(e)&&(!SG[e.id][d]||(isFixedHC(e)&&SG[e.id][d]==='HC5')));
+  const need=z=>Math.min(2,NS.filter(e=>e.zone===z&&isBT(e)).length);
+  const ok=(z,d)=>home(z,d).length>=need(z);
   for(let pass=0;pass<3;pass++)for(let d=1;d<=SDAYS;d++)[1,2,3].forEach(z=>{
     let guard=0;
     while(!ok(z,d)&&guard++<6){
-      const hb=home(z,d).filter(e=>e.team!=='IT').length;
-      const cand=NS.filter(e=>e.zone===z&&SG[e.id][d]==='w'&&!sTripW(e.id,d)&&!isFixedHC(e))
-        .sort((a,b)=>((b.team!=='IT')-(a.team!=='IT'))*(hb<2?1:0)||0);           // thiếu bảo trì → ưu tiên gọi bảo trì về
+      const cand=NS.filter(e=>e.zone===z&&isBT(e)&&SG[e.id][d]==='w'&&!sTripW(e.id,d)&&!isFixedHC(e));
       let moved=false;
       for(const e of cand){
-        // tìm ngày khác gần nhất: người đó trống, Zone vẫn dư người sau khi nghỉ, không nghỉ liền kề, không vượt trần nghỉ/ngày
+        // dời ngày nghỉ sang ngày gần nhất: người đó trống, Zone vẫn đủ bảo trì sau khi nghỉ, không nghỉ liền kề, không vượt trần nghỉ/ngày
         const ds=[];for(let k=1;k<SDAYS;k++){if(d-k>=1)ds.push(d-k);if(d+k<=SDAYS)ds.push(d+k);}
         for(const d2 of ds){
           if(SG[e.id][d2]||SG[e.id][d2-1]==='w'||SG[e.id][d2+1]==='w'||sWD(d2)>=capW())continue;
-          const h2=home(z,d2).filter(x=>x.id!==e.id);
-          if(h2.length<2||(e.team!=='IT'&&h2.filter(x=>x.team!=='IT').length<Math.min(2,NS.filter(x=>x.zone===z&&x.team!=='IT').length)))continue;
+          if(home(z,d2).filter(x=>x.id!==e.id).length<need(z))continue;
           SG[e.id][d]='';SG[e.id][d2]='w';moved=true;break;}
         if(moved)break;}
       if(!moved)break;}
@@ -1496,44 +1495,37 @@ function sFixedBTHC(z,d){return NS.some(e=>e.zone===z&&e.team!=='IT'&&isFixedHC(
 let SHIFT_WARN=[];
 function sFillShifts(){const ls={},ss={},lastPM={};NS.forEach(e=>{ls[e.id]='';ss[e.id]=0;lastPM[e.id]=-99;});
   SHIFT_WARN=[];
-  const isBT=e=>e.team!=='IT'; // bảo trì (không tính IT Helpdesk)
-  for(let d=1;d<=SDAYS;d++)[1,2,3].forEach(z=>{const w=NS.filter(e=>e.zone===z&&!SG[e.id][d]);const k=w.length;if(!k){SHIFT_WARN.push(`ngày ${d} Z${z}: không ai ở nhà — trống cả 2 ca`);return;}
-    const bt=w.filter(isBT);
-    const fxHC=sFixedBTHC(z,d);                      // đã có bảo trì lịch cố định trực HC5
-    let p=k===1?1:Math.min(2,Math.max(1,Math.round(k/3)));
-    if(fxHC&&k<=2)p=1;
-    const forbid=new Set(w.filter(e=>ls[e.id]==='PM26'&&ss[e.id]>=3).map(e=>e.id));
+  const isBT=e=>e.team!=='IT'; // bảo trì điện / điện lạnh — CHỈ nhóm này bị ràng buộc đủ 2 ca
+  const setS=(e,s,d)=>{SG[e.id][d]=s;if(s==='PM26')lastPM[e.id]=d;if(ls[e.id]===s)ss[e.id]++;else ss[e.id]=1;ls[e.id]=s;};
+  // chọn n người trực PM26 trong nhóm, xoay đều + không quá 3 ngày liền 1 ca
+  const pickPM=(w,n)=>{const forbid=new Set(w.filter(e=>ls[e.id]==='PM26'&&ss[e.id]>=3).map(e=>e.id));
     const forced=w.filter(e=>ls[e.id]==='HC5'&&ss[e.id]>=3&&!forbid.has(e.id));
-    const pmSet=new Set();forced.forEach(e=>{if(pmSet.size<p)pmSet.add(e.id);});
-    const rest=w.filter(e=>!pmSet.has(e.id)&&!forbid.has(e.id)).sort((a,b)=>lastPM[a.id]-lastPM[b.id]); // xoay đều: lâu nhất chưa trực PM26 trước
-    for(const e of rest){if(pmSet.size>=p)break;pmSet.add(e.id);}
-    // ===== RÀNG BUỘC: mỗi ca của Zone phải có ≥1 BẢO TRÌ =====
-    if(bt.length>=2){
-      const btPM=()=>bt.filter(e=>pmSet.has(e.id));
-      const btHC=()=>bt.filter(e=>!pmSet.has(e.id));
-      if(btPM().length===0){ // ca chiều chưa có bảo trì -> đưa 1 BT vào PM
-        const cand=btHC().filter(e=>!forbid.has(e.id)).sort((a,b)=>lastPM[a.id]-lastPM[b.id])[0]
-                 || btHC().sort((a,b)=>lastPM[a.id]-lastPM[b.id])[0];
-        if(cand){ // nhường chỗ: đẩy 1 IT ra khỏi PM nếu PM đã đủ số
-          if(pmSet.size>=p){const it=w.find(e=>!isBT(e)&&pmSet.has(e.id));if(it)pmSet.delete(it.id);}
-          pmSet.add(cand.id);}
-      }
-      if(btHC().length===0&&!fxHC){ // ca HC chưa có bảo trì -> rút 1 BT khỏi PM
-        const cand=btPM().sort((a,b)=>lastPM[b.id]-lastPM[a.id])[0];
-        if(cand){pmSet.delete(cand.id);
-          if(pmSet.size<1){const it=w.find(e=>!isBT(e)&&!pmSet.has(e.id));if(it)pmSet.add(it.id);}}
-      }
-    }else if(bt.length===1&&fxHC){
-      pmSet.clear();pmSet.add(bt[0].id);         // HC đã có bảo trì cố định → bảo trì còn lại trực ca chiều
-    }else if(bt.length===1){
-      pmSet.delete(bt[0].id); // 1 bảo trì duy nhất -> giữ ca HC (giờ hành chính)
-      if(!pmSet.size){const it=w.find(e=>!isBT(e));if(it)pmSet.add(it.id);}   // còn IT ở nhà → IT trực ca chiều để Zone vẫn đủ 2 ca
-      SHIFT_WARN.push(`ngày ${d} Z${z}: chỉ 1 bảo trì ở nhà, ca chiều ${pmSet.size?'chỉ có IT':'TRỐNG'}`);
-    }else{
-      SHIFT_WARN.push(`ngày ${d} Z${z}: không có bảo trì ở nhà`);
-    }
-    if(k===1&&!fxHC)SHIFT_WARN.push(`ngày ${d} Z${z}: chỉ 1 người ở nhà — thiếu ca ${pmSet.size?'sáng (HC5)':'chiều (PM26)'}`);
-    w.forEach(e=>{const s=pmSet.has(e.id)?'PM26':'HC5';SG[e.id][d]=s;if(s==='PM26')lastPM[e.id]=d;if(ls[e.id]===s)ss[e.id]++;else ss[e.id]=1;ls[e.id]=s;});});}
+    const pm=new Set();forced.forEach(e=>{if(pm.size<n)pm.add(e.id);});
+    w.filter(e=>!pm.has(e.id)&&!forbid.has(e.id)).sort((a,b)=>lastPM[a.id]-lastPM[b.id]).forEach(e=>{if(pm.size<n)pm.add(e.id);});
+    if(pm.size<n)w.filter(e=>!pm.has(e.id)).forEach(e=>{if(pm.size<n)pm.add(e.id);});
+    return pm;};
+  for(let d=1;d<=SDAYS;d++)[1,2,3].forEach(z=>{
+    const wBT=NS.filter(e=>e.zone===z&&isBT(e)&&!SG[e.id][d]);
+    const wIT=NS.filter(e=>e.zone===z&&!isBT(e)&&!SG[e.id][d]);
+    const fxHC=sFixedBTHC(z,d);                      // có bảo trì lịch cố định đang trực HC5
+    const kb=wBT.length;
+    // ===== BẢO TRÌ: mỗi ca (HC5 & PM26) phải có ≥1 bảo trì =====
+    let pBT;
+    if(fxHC)pBT=kb?Math.min(2,Math.max(1,Math.round((kb+1)/3))):0;   // HC đã có người cố định → dồn sang PM
+    else if(kb>=2)pBT=Math.min(2,Math.max(1,Math.round(kb/3)));
+    else pBT=0;                                       // 1 bảo trì → giữ HC5
+    if(fxHC&&kb===0)SHIFT_WARN.push(`ngày ${d} Z${z}: thiếu bảo trì ca chiều (PM26)`);
+    else if(!fxHC&&kb===1)SHIFT_WARN.push(`ngày ${d} Z${z}: chỉ 1 bảo trì ở nhà — thiếu bảo trì ca chiều (PM26)`);
+    else if(!fxHC&&kb===0&&NS.some(e=>e.zone===z&&isBT(e)))SHIFT_WARN.push(`ngày ${d} Z${z}: không có bảo trì ở nhà — trống cả 2 ca`);
+    const pmB=pickPM(wBT,pBT);
+    wBT.forEach(e=>setS(e,pmB.has(e.id)?'PM26':'HC5',d));
+    // ===== IT HELPDESK: không tính vào đủ người ca trực, chỉ xoay ca đều, không quá 3 ngày liền 1 ca =====
+    const room=2;                                  // IT xoay riêng, trần PM26 riêng của IT
+    const forcedIT=wIT.filter(e=>ls[e.id]==='HC5'&&ss[e.id]>=3).length;
+    const pIT=Math.min(room,wIT.length,Math.max(forcedIT,wIT.length>=2?Math.floor(wIT.length/2):0));
+    const pmI=pickPM(wIT,pIT);
+    wIT.forEach(e=>setS(e,pmI.has(e.id)?'PM26':'HC5',d));
+  });}
 function sIsShift(v){return v==='HC5'||v==='PM26';}
 function sStreakEnd(id,d){const s=SG[id][d];if(!sIsShift(s))return 0;let c=1;for(let k=d-1;k>=1;k--){if(SG[id][k]===s)c++;else break;}return c;}
 function sMaxRun(id,dd,sft){let l=0;for(let k=dd-1;k>=1;k--){if(SG[id][k]===sft)l++;else break;}let r=0;for(let k=dd+1;k<=SDAYS;k++){if(SG[id][k]===sft)r++;else break;}return l+1+r;}
@@ -1580,7 +1572,7 @@ function genSchedule(){
   document.getElementById('schMsg').innerHTML=(notes.length?('⚠️ '+notes.join('; ')+' · '):'✓ ')+src+' · bấm ô để sửa'
     +(MB_SYNCED?` · <span style="color:#0f766e">🔄 đã cập nhật ${MB_SYNCED} công trình theo lịch khai trương mới</span>`:'')
     +(na.length?` · <span style="color:#0f766e">${na.length} địa điểm chưa giao ai: ${na.map(r=>r.ten.slice(0,18)).join(' · ')}</span>`:'')
-    +(SHIFT_WARN.length?` · <span style="color:#b45309" title="${SHIFT_WARN.join(' · ')}">⚠️ ${SHIFT_WARN.length} ngày-Zone không đủ bảo trì cho 2 ca (${SHIFT_WARN.slice(0,2).join('; ')}${SHIFT_WARN.length>2?'…':''})</span>`:'');
+    +(SHIFT_WARN.length?` · <span style="color:#b45309" title="${SHIFT_WARN.join(' · ')}">⚠️ ${SHIFT_WARN.length} ngày-Zone không đủ bảo trì (điện/lạnh) cho 2 ca (${SHIFT_WARN.slice(0,2).join('; ')}${SHIFT_WARN.length>2?'…':''})</span>`:'');
   renderSched();
   if(cmpOn)refreshCompare();
   if(dfl.length&&!mbAutoDone&&!mbSyncBusy){mbAutoDone=true;afterMBChange(true);}  // còn lệch thì tự cập nhật, không hỏi
@@ -1862,7 +1854,7 @@ function rulesHTML(){return `<div style="background:#f7faf8;border:1px solid var
   <b>2. Trọn chuyến:</b> bắt buộc <b>+1 ngày w trước và +1 ngày w sau</b> khối thi công (vd Shop = 1+9+1 = 11 ngày).<br>
   <b>3. Bố trí người:</b> vòng xoay đều — ai <b>ít chuyến / lâu chưa đi</b> thì ưu tiên (không theo skill). Chi nhánh ở <b>HCM / Bình Dương / Đồng Nai</b> ưu tiên người <b>cùng Zone (gần)</b> để tối ưu chi phí.<br>
   <b>4. Nghỉ:</b> tối đa <b>${MAXW} ngày w/tháng</b>; tổng người nghỉ w <b>mỗi ngày ≤ ${capW()}</b> (tổng NV ÷ 7); hạn chế nghỉ w liên tục. <b>A (phép) & O (nghỉ bù) lấy từ WSHR</b> — giữ nguyên, không tự sinh; lịch w/ca xếp quanh các ngày nghỉ này.<br>
-  <b>5. Ca (HC5 8–17h / PM26 13–22h):</b> mỗi Zone mỗi ngày <b>đủ cả 2 ca</b>, và <b>mỗi ca phải có ít nhất 1 BẢO TRÌ</b> (IT Helpdesk không tính thay); Zone chỉ còn 1 bảo trì → giữ ca <b>HC5</b> và báo cảnh báo; <b>≤ 2 PM26/Zone/ngày</b>; cân số người mỗi ca; <b>xoay ca không quá 3 ngày liên tục</b>.<br>
+  <b>5. Ca (HC5 8–17h / PM26 13–22h):</b> mỗi Zone mỗi ngày <b>đủ cả 2 ca</b>: <b>mỗi ca phải có ít nhất 1 BẢO TRÌ (điện / điện lạnh)</b> — quy tắc đủ người <b>chỉ áp dụng cho bảo trì</b>, IT Helpdesk không tính và không bị ràng buộc (chỉ xoay ca đều); Zone chỉ còn 1 bảo trì → giữ ca <b>HC5</b> và báo cảnh báo; <b>≤ 2 bảo trì PM26/Zone/ngày</b>; cân số người mỗi ca; <b>xoay ca không quá 3 ngày liên tục</b>.<br>
   <b>5b. Lịch cố định:</b> ${FIXED_HC.join(', ')} làm <b>HC5 từ T2 → T7</b>, <b>Chủ nhật nghỉ w</b> (không xoay ca, không đi thi công).<br>
   <b>6. Zone chi nhánh</b> tự đoán theo địa chỉ; mỗi công trình 1 màu; <b>w/A/O</b> chữ đỏ; ô sửa tay được giữ nguyên.
 </div>`;}
