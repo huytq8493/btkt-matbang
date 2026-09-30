@@ -1598,7 +1598,7 @@ let VT_SEL=new Set();try{const x=JSON.parse(localStorage.getItem('btkt_vtf')||'[
 function vtShow(e){return !VT_SEL.size||VT_SEL.has(vtKey(e));}
 function vtPaint(){document.querySelectorAll('#vtFilter .vtf').forEach(b=>{const k=b.dataset.k;
     const n=k==='ALL'?NS.length:NS.filter(e=>vtKey(e)===k).length;
-    b.classList.toggle('on',k==='ALL'?!VT_SEL.size:VT_SEL.has(k));
+    b.classList.toggle('on',k==='ALL'?!VT_SEL.size:VT_SEL.has(k));b.style.display=(k!=='ALL'&&NS.length&&!n)?'none':'';
     const base=b.textContent.replace(/\s*\(\d+\)$/,'');b.innerHTML=base+(NS.length?`<span class="vtf-cnt">(${n})</span>`:'');});}
 function vtToggle(k){if(k==='ALL')VT_SEL.clear();else{VT_SEL.has(k)?VT_SEL.delete(k):VT_SEL.add(k);if(VT_SEL.size===4)VT_SEL.clear();}
   try{localStorage.setItem('btkt_vtf',JSON.stringify([...VT_SEL]));}catch(_){}
