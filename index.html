@@ -1465,13 +1465,13 @@ function sFillRest(){NS.forEach(e=>{let st=0;for(let d=1;d<=SDAYS;d++){const v=S
 // ===== ĐỦ NGƯỜI 2 CA: ngày-Zone nào ở nhà < 2 người (hoặc < 2 bảo trì) → dời ngày nghỉ w của người trong Zone sang ngày khác dư người =====
 function sTripW(id,d){const a=SG[id][d-1],b=SG[id][d+1];return (a&&a.ct)||(b&&b.ct);}   // w bắt buộc trước/sau chuyến công tác → không dời
 function sFixCoverage(){
-  const home=(z,d)=>NS.filter(e=>e.zone===z&&!SG[e.id][d]);
+  const home=(z,d)=>NS.filter(e=>e.zone===z&&(!SG[e.id][d]||(isFixedHC(e)&&SG[e.id][d]==='HC5')));
   const ok=(z,d)=>{const h=home(z,d);return h.length>=2&&h.filter(e=>e.team!=='IT').length>=Math.min(2,NS.filter(e=>e.zone===z&&e.team!=='IT').length);};
   for(let pass=0;pass<3;pass++)for(let d=1;d<=SDAYS;d++)[1,2,3].forEach(z=>{
     let guard=0;
     while(!ok(z,d)&&guard++<6){
       const hb=home(z,d).filter(e=>e.team!=='IT').length;
-      const cand=NS.filter(e=>e.zone===z&&SG[e.id][d]==='w'&&!sTripW(e.id,d))
+      const cand=NS.filter(e=>e.zone===z&&SG[e.id][d]==='w'&&!sTripW(e.id,d)&&!isFixedHC(e))
         .sort((a,b)=>((b.team!=='IT')-(a.team!=='IT'))*(hb<2?1:0)||0);           // thiếu bảo trì → ưu tiên gọi bảo trì về
       let moved=false;
       for(const e of cand){
@@ -1486,13 +1486,22 @@ function sFixCoverage(){
       if(!moved)break;}
   });
 }
+// ===== LỊCH CỐ ĐỊNH (case đặc biệt): HC5 từ T2 → T7, Chủ nhật nghỉ w. Không xoay ca, không bị dời nghỉ =====
+const FIXED_HC=['Nguyễn Trần Anh Khoa'];
+function isFixedHC(e){return !!e&&FIXED_HC.some(n=>norm(n)===norm(e.ten));}
+function sPlaceFixed(){NS.filter(isFixedHC).forEach(e=>{for(let d=1;d<=SDAYS;d++){if(SG[e.id][d])continue; // giữ A/O (WSHR) & công tác nếu có
+    SG[e.id][d]=sdow(d)===0?'w':'HC5';}});}
+// có bảo trì lịch cố định HC5 trong Zone ngày d → ca HC đã có bảo trì
+function sFixedBTHC(z,d){return NS.some(e=>e.zone===z&&e.team!=='IT'&&isFixedHC(e)&&SG[e.id][d]==='HC5');}
 let SHIFT_WARN=[];
 function sFillShifts(){const ls={},ss={},lastPM={};NS.forEach(e=>{ls[e.id]='';ss[e.id]=0;lastPM[e.id]=-99;});
   SHIFT_WARN=[];
   const isBT=e=>e.team!=='IT'; // bảo trì (không tính IT Helpdesk)
   for(let d=1;d<=SDAYS;d++)[1,2,3].forEach(z=>{const w=NS.filter(e=>e.zone===z&&!SG[e.id][d]);const k=w.length;if(!k){SHIFT_WARN.push(`ngày ${d} Z${z}: không ai ở nhà — trống cả 2 ca`);return;}
     const bt=w.filter(isBT);
+    const fxHC=sFixedBTHC(z,d);                      // đã có bảo trì lịch cố định trực HC5
     let p=k===1?1:Math.min(2,Math.max(1,Math.round(k/3)));
+    if(fxHC&&k<=2)p=1;
     const forbid=new Set(w.filter(e=>ls[e.id]==='PM26'&&ss[e.id]>=3).map(e=>e.id));
     const forced=w.filter(e=>ls[e.id]==='HC5'&&ss[e.id]>=3&&!forbid.has(e.id));
     const pmSet=new Set();forced.forEach(e=>{if(pmSet.size<p)pmSet.add(e.id);});
@@ -1509,11 +1518,13 @@ function sFillShifts(){const ls={},ss={},lastPM={};NS.forEach(e=>{ls[e.id]='';ss
           if(pmSet.size>=p){const it=w.find(e=>!isBT(e)&&pmSet.has(e.id));if(it)pmSet.delete(it.id);}
           pmSet.add(cand.id);}
       }
-      if(btHC().length===0){ // ca HC chưa có bảo trì -> rút 1 BT khỏi PM
+      if(btHC().length===0&&!fxHC){ // ca HC chưa có bảo trì -> rút 1 BT khỏi PM
         const cand=btPM().sort((a,b)=>lastPM[b.id]-lastPM[a.id])[0];
         if(cand){pmSet.delete(cand.id);
           if(pmSet.size<1){const it=w.find(e=>!isBT(e)&&!pmSet.has(e.id));if(it)pmSet.add(it.id);}}
       }
+    }else if(bt.length===1&&fxHC){
+      pmSet.clear();pmSet.add(bt[0].id);         // HC đã có bảo trì cố định → bảo trì còn lại trực ca chiều
     }else if(bt.length===1){
       pmSet.delete(bt[0].id); // 1 bảo trì duy nhất -> giữ ca HC (giờ hành chính)
       if(!pmSet.size){const it=w.find(e=>!isBT(e));if(it)pmSet.add(it.id);}   // còn IT ở nhà → IT trực ca chiều để Zone vẫn đủ 2 ca
@@ -1521,7 +1532,7 @@ function sFillShifts(){const ls={},ss={},lastPM={};NS.forEach(e=>{ls[e.id]='';ss
     }else{
       SHIFT_WARN.push(`ngày ${d} Z${z}: không có bảo trì ở nhà`);
     }
-    if(k===1)SHIFT_WARN.push(`ngày ${d} Z${z}: chỉ 1 người ở nhà — thiếu ca ${pmSet.size?'sáng (HC5)':'chiều (PM26)'}`);
+    if(k===1&&!fxHC)SHIFT_WARN.push(`ngày ${d} Z${z}: chỉ 1 người ở nhà — thiếu ca ${pmSet.size?'sáng (HC5)':'chiều (PM26)'}`);
     w.forEach(e=>{const s=pmSet.has(e.id)?'PM26':'HC5';SG[e.id][d]=s;if(s==='PM26')lastPM[e.id]=d;if(ls[e.id]===s)ss[e.id]++;else ss[e.id]=1;ls[e.id]=s;});});}
 function sIsShift(v){return v==='HC5'||v==='PM26';}
 function sStreakEnd(id,d){const s=SG[id][d];if(!sIsShift(s))return 0;let c=1;for(let k=d-1;k>=1;k--){if(SG[id][k]===s)c++;else break;}return c;}
@@ -1540,8 +1551,8 @@ function sBTok(z,dd,x,y){
 function sRepairRot(){ // khử chuỗi ca >3 ngày: hoán đổi ca trong cùng Zone/ngày (giữ nguyên số ca), cùng lắm chuyển ngày thứ 4 sang O
   for(let pass=0;pass<20;pass++){let fixed=0;
     for(let d=SDAYS;d>=4;d--)[1,2,3].forEach(z=>{const wk=NS.filter(e=>e.zone===z&&sIsShift(SG[e.id][d]));
-      wk.forEach(x=>{ if(sStreakEnd(x.id,d)>3){ for(const dd of [d,d-1,d-2,d-3]){ if(dd<1)continue; const cur=SG[x.id][dd]; if(!sIsShift(cur))continue; const other=cur==='HC5'?'PM26':'HC5';
-        const y=NS.find(w=>w.zone===z&&w.id!==x.id&&SG[w.id][dd]===other&&sMaxRun(x.id,dd,other)<=3&&sMaxRun(w.id,dd,cur)<=3&&sBTok(z,dd,x,w));
+      wk.forEach(x=>{ if(!isFixedHC(x)&&sStreakEnd(x.id,d)>3){ for(const dd of [d,d-1,d-2,d-3]){ if(dd<1)continue; const cur=SG[x.id][dd]; if(!sIsShift(cur))continue; const other=cur==='HC5'?'PM26':'HC5';
+        const y=NS.find(w=>w.zone===z&&w.id!==x.id&&!isFixedHC(w)&&SG[w.id][dd]===other&&sMaxRun(x.id,dd,other)<=3&&sMaxRun(w.id,dd,cur)<=3&&sBTok(z,dd,x,w));
         if(y){const t=SG[x.id][dd];SG[x.id][dd]=SG[y.id][dd];SG[y.id][dd]=t;fixed++;break;} } } });
     });
     if(!fixed)break;}
@@ -1555,7 +1566,7 @@ function genSchedule(){
   LEAVE_ALL.forEach(l=>{const p=(l.ngay||'').split('-').map(Number);if(p[0]===SY&&p[1]===SM){const e=NS.find(x=>x.ten===l.ten);if(e)SG[e.id][p[2]]=l.loai;}});
   // Nguồn công tác: ma trận TOUR thật (mặc định) hoặc tự xếp
   const notes=(useTour&&TOUR_ALL.length)?sPlaceTour():sPlaceCT();
-  sRestCT();sFillRest();sFixCoverage();sFillShifts();sRepairRot();
+  sRestCT();sPlaceFixed();sFillRest();sFixCoverage();sFillShifts();sRepairRot();
   const ops=monthOpenings();
   // màu công trình: gom từ chính lịch đã đặt (kể cả từ tour)
   SITECOL={};const seenB=[];
@@ -1852,6 +1863,7 @@ function rulesHTML(){return `<div style="background:#f7faf8;border:1px solid var
   <b>3. Bố trí người:</b> vòng xoay đều — ai <b>ít chuyến / lâu chưa đi</b> thì ưu tiên (không theo skill). Chi nhánh ở <b>HCM / Bình Dương / Đồng Nai</b> ưu tiên người <b>cùng Zone (gần)</b> để tối ưu chi phí.<br>
   <b>4. Nghỉ:</b> tối đa <b>${MAXW} ngày w/tháng</b>; tổng người nghỉ w <b>mỗi ngày ≤ ${capW()}</b> (tổng NV ÷ 7); hạn chế nghỉ w liên tục. <b>A (phép) & O (nghỉ bù) lấy từ WSHR</b> — giữ nguyên, không tự sinh; lịch w/ca xếp quanh các ngày nghỉ này.<br>
   <b>5. Ca (HC5 8–17h / PM26 13–22h):</b> mỗi Zone mỗi ngày <b>đủ cả 2 ca</b>, và <b>mỗi ca phải có ít nhất 1 BẢO TRÌ</b> (IT Helpdesk không tính thay); Zone chỉ còn 1 bảo trì → giữ ca <b>HC5</b> và báo cảnh báo; <b>≤ 2 PM26/Zone/ngày</b>; cân số người mỗi ca; <b>xoay ca không quá 3 ngày liên tục</b>.<br>
+  <b>5b. Lịch cố định:</b> ${FIXED_HC.join(', ')} làm <b>HC5 từ T2 → T7</b>, <b>Chủ nhật nghỉ w</b> (không xoay ca, không đi thi công).<br>
   <b>6. Zone chi nhánh</b> tự đoán theo địa chỉ; mỗi công trình 1 màu; <b>w/A/O</b> chữ đỏ; ô sửa tay được giữ nguyên.
 </div>`;}
 let nsFT='', nsFP='';
