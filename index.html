@@ -146,6 +146,12 @@
   .vt-DL{background:#dbeafe;color:#1d4ed8}
   .vt-CDT{background:#ede9fe;color:#6d28d9}
   .vt-IT{background:#ccfbf1;color:#0f766e}
+  .vtf-wrap{display:inline-flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .vtf{font:inherit;font-size:11px;font-weight:800;padding:4px 10px;border-radius:999px;border:1.5px solid transparent;cursor:pointer;opacity:.45;transition:opacity .15s,box-shadow .15s,transform .1s}
+  .vtf:hover{opacity:.8}.vtf:active{transform:scale(.96)}
+  .vtf.on{opacity:1;border-color:currentColor;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+  .vtf-all{background:#f1f5f9;color:#334155}
+  .vtf-cnt{font-weight:600;opacity:.75;margin-left:3px}
   .s-empty{color:#cbd5d0}
   .swe{background:#fff5f5}
   #schGrid .warn{background:#fef2f2;outline:2px solid #fecaca;outline-offset:-2px}
@@ -495,11 +501,14 @@
         <span class="lg"><span class="sw" style="color:#dc2626;border-color:#fecaca">A</span> phép (WSHR)</span>
         <span class="lg"><span class="sw" style="color:#dc2626;border-color:#fecaca">O</span> nghỉ bù (WSHR)</span>
         <span class="leg-sep"></span>
-        <span class="lg" style="color:var(--muted2)">Nghiệp vụ:</span>
-        <span class="vt vt-D">Điện</span>
-        <span class="vt vt-DL">Điện/Lạnh</span>
-        <span class="vt vt-CDT">Cơ điện tử</span>
-        <span class="vt vt-IT">IT</span>
+        <span class="lg" style="color:var(--muted2)">Lọc nghiệp vụ:</span>
+        <span id="vtFilter" class="vtf-wrap">
+          <button type="button" class="vtf vtf-all" data-k="ALL" onclick="vtToggle('ALL')">Tất cả</button>
+          <button type="button" class="vtf vt-D" data-k="D" onclick="vtToggle('D')">Điện</button>
+          <button type="button" class="vtf vt-DL" data-k="DL" onclick="vtToggle('DL')">Điện/Lạnh</button>
+          <button type="button" class="vtf vt-CDT" data-k="CDT" onclick="vtToggle('CDT')">Cơ điện tử</button>
+          <button type="button" class="vtf vt-IT" data-k="IT" onclick="vtToggle('IT')">IT</button>
+        </span>
       </div>
       <div id="siteLegend" class="leg2" style="display:none;background:#fff"></div>
       <div class="tablewrap" id="schWrap" style="max-height:72vh"><table id="schGrid"></table></div>
@@ -1583,6 +1592,17 @@ function toggleSrc(){useTour=!useTour;
 const SCYCLE=['','HC5','PM26','w'];
 function scycle(id,d){const cur=SG[id][d];if(cur&&cur.ct)SG[id][d]='';else{const i=SCYCLE.indexOf(cur||'');SG[id][d]=SCYCLE[(i+1)%SCYCLE.length];}renderSched();}
 function scls(v){if(!v)return 's-empty';if(v.ct)return 's-CT';return 's-'+v;}
+// ===== LỌC NGHIỆP VỤ trên lịch làm việc (chỉ ẩn/hiện dòng, không ảnh hưởng xếp lịch & xuất file) =====
+function vtKey(e){const v=e.vitri||'';if(e.team==='IT')return 'IT';if(/Cơ/.test(v))return 'CDT';if(v.indexOf('/')>=0||/Lạnh/.test(v))return 'DL';if(/Điện/.test(v))return 'D';return 'X';}
+let VT_SEL=new Set();try{const x=JSON.parse(localStorage.getItem('btkt_vtf')||'[]');if(Array.isArray(x))VT_SEL=new Set(x);}catch(_){}
+function vtShow(e){return !VT_SEL.size||VT_SEL.has(vtKey(e));}
+function vtPaint(){document.querySelectorAll('#vtFilter .vtf').forEach(b=>{const k=b.dataset.k;
+    const n=k==='ALL'?NS.length:NS.filter(e=>vtKey(e)===k).length;
+    b.classList.toggle('on',k==='ALL'?!VT_SEL.size:VT_SEL.has(k));
+    const base=b.textContent.replace(/\s*\(\d+\)$/,'');b.innerHTML=base+(NS.length?`<span class="vtf-cnt">(${n})</span>`:'');});}
+function vtToggle(k){if(k==='ALL')VT_SEL.clear();else{VT_SEL.has(k)?VT_SEL.delete(k):VT_SEL.add(k);if(VT_SEL.size===4)VT_SEL.clear();}
+  try{localStorage.setItem('btkt_vtf',JSON.stringify([...VT_SEL]));}catch(_){}
+  renderSched();if(typeof cmpOn!=='undefined'&&cmpOn)renderCompare();}
 function vtBadge(e){const v=e.vitri||'';
   if(e.team==='IT')return '<span class="vt vt-IT">IT</span>';
   if(/Cơ/.test(v))return '<span class="vt vt-CDT">Cơ điện tử</span>';
@@ -1597,7 +1617,8 @@ function renderSched(){
   for(let d=1;d<=SDAYS;d++)h+=`<th class="${sWeekend(d)?'s-w':''}">${DOWV[sdow(d)]}<br>${d}</th>`;
   h+='<th>CT</th><th>w</th></tr></thead><tbody>';
   let zp=0;
-  NS.forEach(e=>{
+  const shown=NS.filter(vtShow);
+  shown.forEach(e=>{
     if(e.zone!==zp){h+=`<tr class="zrow"><td colspan="${SDAYS+3}">ZONE ${e.zone}</td></tr>`;zp=e.zone;}
     let wc=0,ao=0,bl=0,pc=false,cells='';
     for(let d=1;d<=SDAYS;d++){const v=SG[e.id]?SG[e.id][d]:'';if(v==='w')wc++;if(v==='A'||v==='O')ao++;const ct=!!(v&&v.ct);if(ct&&!pc)bl++;pc=ct;
@@ -1605,7 +1626,9 @@ function renderSched(){
       cells+=`<td class="sc ${scls(v)} ${sWeekend(d)?'swe':''}"${stl} onclick="scycle(${e.id},${d})">${stext(v)}</td>`;}
     h+=`<tr><td class="snm">${e.ten}${vtBadge(e)}</td>${cells}<td><b>${bl||''}</b></td><td><b>${wc}</b></td></tr>`;
   });
+  if(!shown.length)h+=`<tr><td colspan="${SDAYS+3}" style="text-align:center;padding:14px;color:var(--muted)">Không có nhân viên thuộc nghiệp vụ đang lọc.</td></tr>`;
   document.getElementById('schGrid').innerHTML=h+'</tbody>';
+  vtPaint();
   const ops=monthOpenings();const sle=document.getElementById('siteLegend');
   if(ops.length){sle.style.display='flex';
     sle.innerHTML='<span class="lg" style="color:var(--muted2);font-weight:700">Công trình:</span>'+ops.map(o=>{const c=SITECOL[o.short]||['#eee','#555'];return `<span class="lg"><span class="vt" style="background:${c[0]};color:${c[1]};margin-left:0">${o.short}</span> ${o.ten.length>28?o.ten.slice(0,28)+'…':o.ten}</span>`;}).join('');}
@@ -1636,7 +1659,7 @@ function renderCompare(){const days=SDAYS;
   for(let d=1;d<=days;d++)head+=`<th class="${sWeekend(d)?'s-w':''}">${DOWV[sdow(d)]}<br>${d}</th>`;
   head+='<th>CT</th></tr></thead>';
   let dx=head+'<tbody>',tt=head+'<tbody>',zp=0,totEx=0,totAc=0,agree=0,both=0,missing=[];
-  NS.forEach(e=>{
+  NS.filter(vtShow).forEach(e=>{
     if(e.zone!==zp){const zr=`<tr class="zrow"><td colspan="${days+2}">ZONE ${e.zone}</td></tr>`;dx+=zr;tt+=zr;zp=e.zone;}
     const act=ACTUAL_ALL[normNm(e.ten)];let exCells='',acCells='',exCT=0,acCT=0;
     for(let d=1;d<=days;d++){
