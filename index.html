@@ -134,6 +134,8 @@
   #schGrid .zrow td{background:#eaf3ee;font-weight:800;color:var(--green-d);text-align:left;position:sticky;left:0;z-index:2}
   #schGrid td.sc{cursor:pointer;min-width:30px}
   #schGrid td.sc:hover{outline:2px solid var(--green);outline-offset:-2px}
+  #schGrid td.sc.man{box-shadow:inset 0 0 0 2px #f59e0b;position:relative}
+  #schGrid td.sc.man::after{content:'';position:absolute;top:2px;right:2px;width:5px;height:5px;border-radius:50%;background:#f59e0b}
   .s-w,.s-A,.s-O{color:#dc2626;font-weight:700}
   .s-CT{background:#e0f2fe;color:#075985;font-weight:700;font-size:10px}
   .s-HC5{color:#166534;background:#eafff1;font-weight:700}.s-PM26{color:#9a3412;background:#fff2e2;font-weight:700}
@@ -479,6 +481,7 @@
         <label style="font-size:13px;font-weight:600;color:var(--muted)">Tháng:</label>
         <select id="schMonth" onchange="genSchedule()"></select>
         <button class="btn btn-save" onclick="genSchedule()">⚙️ Xếp lịch tự động</button>
+        <button class="btn-reload" id="manClearBtn" onclick="manClear()" title="Xoá toàn bộ ô đã sửa tay của tháng này, quay về lịch tự xếp" style="display:none">↺ Bỏ sửa tay (<span id="manCnt">0</span>)</button>
         <button class="btn-reload" id="srcBtn" onclick="toggleSrc()">🗂️ Nguồn: ma trận TOUR</button>
         <button class="btn-reload" id="cmpBtn" onclick="toggleCompare()">🔍 So sánh thực tế</button>
         <button class="btn-reload" id="tourBtn" onclick="toggleTour()">🗂️ Ma trận TOUR</button>
@@ -1562,12 +1565,14 @@ function genSchedule(){
   if(!NS.length){document.getElementById('schMsg').textContent='Chưa có nhân sự.';return;}
   const mv=document.getElementById('schMonth').value; if(mv){SY=+mv.split('-')[0];SM=+mv.split('-')[1];}
   SDAYS=new Date(SY,SM,0).getDate();
+  if(MAN_KEY!==SY+'-'+SM){if(!MAN_LOADING)loadManual(SY,SM).then(ok=>{if(ok)genSchedule();});}  // nạp ô sửa tay của tháng rồi xếp lại
   SG={};NS.forEach(e=>SG[e.id]={});
   // Áp đơn nghỉ A/O từ WSHR (giữ nguyên, không tự sinh) trước khi xếp
   LEAVE_ALL.forEach(l=>{const p=(l.ngay||'').split('-').map(Number);if(p[0]===SY&&p[1]===SM){const e=NS.find(x=>x.ten===l.ten);if(e)SG[e.id][p[2]]=l.loai;}});
   // Nguồn công tác: ma trận TOUR thật (mặc định) hoặc tự xếp
   const notes=(useTour&&TOUR_ALL.length)?sPlaceTour():sPlaceCT();
   sRestCT();sPlaceFixed();sFillRest();sFixCoverage();sFillShifts();sRepairRot();
+  manApply();                                    // ô sửa tay luôn thắng lịch tự xếp
   const ops=monthOpenings();
   // màu công trình: gom từ chính lịch đã đặt (kể cả từ tour)
   SITECOL={};const seenB=[];
@@ -1590,7 +1595,27 @@ function toggleSrc(){useTour=!useTour;
   document.getElementById('srcBtn').textContent=useTour?'🗂️ Nguồn: ma trận TOUR':'⚙️ Nguồn: tự xếp';
   genSchedule();}
 const SCYCLE=['','HC5','PM26','w'];
-function scycle(id,d){const cur=SG[id][d];if(cur&&cur.ct)SG[id][d]='';else{const i=SCYCLE.indexOf(cur||'');SG[id][d]=SCYCLE[(i+1)%SCYCLE.length];}renderSched();}
+// ===== SỬA TAY LỊCH: lưu Supabase (btkt_lich_sua), đè lên lịch tự xếp mỗi lần xếp lại / tải lại =====
+let MAN={},MAN_KEY='',MAN_LOADING=false;           // MAN[nv_id][ngay]=giá trị sửa tay của tháng MAN_KEY
+async function loadManual(y,m){MAN_LOADING=true;
+  const {data,error}=await sb.from('btkt_lich_sua').select('nv_id,ngay,gia_tri').eq('nam',y).eq('thang',m);
+  MAN_LOADING=false;if(error){console.error('loadManual',error);return false;}
+  MAN={};(data||[]).forEach(r=>{(MAN[r.nv_id]=MAN[r.nv_id]||{})[r.ngay]=r.gia_tri;});MAN_KEY=y+'-'+m;return true;}
+function manApply(){if(MAN_KEY!==SY+'-'+SM)return;
+  Object.keys(MAN).forEach(id=>{if(!SG[id])return;Object.keys(MAN[id]).forEach(d=>{if(+d>=1&&+d<=SDAYS)SG[id][d]=MAN[id][d];});});}
+function manCount(){if(MAN_KEY!==SY+'-'+SM)return 0;return Object.values(MAN).reduce((a,o)=>a+Object.keys(o).length,0);}
+function manPaint(){const b=document.getElementById('manClearBtn');if(!b)return;const n=manCount();b.style.display=n?'':'none';document.getElementById('manCnt').textContent=n;}
+async function manSave(id,d,v){
+  (MAN[id]=MAN[id]||{})[d]=v;MAN_KEY=SY+'-'+SM;renderSched();
+  const {error}=await sb.from('btkt_lich_sua').upsert({nam:SY,thang:SM,nv_id:id,ngay:d,gia_tri:v,updated_at:new Date().toISOString()},{onConflict:'nam,thang,nv_id,ngay'});
+  if(error){alert('Không lưu được ô sửa tay: '+error.message);return;}
+  const el=document.getElementById('schMsg');if(el)el.innerHTML=`💾 Đã lưu sửa tay ngày ${d}/${SM} — tải lại trang vẫn giữ. `+el.innerHTML.replace(/^💾[^·]*· ?/,'');}
+async function manClear(){const n=manCount();if(!n)return;
+  if(!confirm(`Bỏ ${n} ô đã sửa tay của tháng ${SM}/${SY}, quay về lịch tự xếp?`))return;
+  const {error}=await sb.from('btkt_lich_sua').delete().eq('nam',SY).eq('thang',SM);
+  if(error){alert('Lỗi: '+error.message);return;}
+  MAN={};MAN_KEY=SY+'-'+SM;genSchedule();}
+function scycle(id,d){const cur=SG[id][d];if(cur&&cur.ct)SG[id][d]='';else{const i=SCYCLE.indexOf(cur||'');SG[id][d]=SCYCLE[(i+1)%SCYCLE.length];}renderSched();manSave(id,d,(SG[id][d]&&SG[id][d].ct)?'':(SG[id][d]||''));}
 function scls(v){if(!v)return 's-empty';if(v.ct)return 's-CT';return 's-'+v;}
 // ===== LỌC NGHIỆP VỤ trên lịch làm việc (chỉ ẩn/hiện dòng, không ảnh hưởng xếp lịch & xuất file) =====
 function vtKey(e){const v=e.vitri||'';if(e.team==='IT')return 'IT';if(/Cơ/.test(v))return 'CDT';if(v.indexOf('/')>=0||/Lạnh/.test(v))return 'DL';if(/Điện/.test(v))return 'D';return 'X';}
@@ -1623,12 +1648,13 @@ function renderSched(){
     let wc=0,ao=0,bl=0,pc=false,cells='';
     for(let d=1;d<=SDAYS;d++){const v=SG[e.id]?SG[e.id][d]:'';if(v==='w')wc++;if(v==='A'||v==='O')ao++;const ct=!!(v&&v.ct);if(ct&&!pc)bl++;pc=ct;
       let stl='';if(v&&v.ct&&SITECOL[v.b])stl=` style="background:${SITECOL[v.b][0]};color:${SITECOL[v.b][1]};font-weight:700"`;
-      cells+=`<td class="sc ${scls(v)} ${sWeekend(d)?'swe':''}"${stl} onclick="scycle(${e.id},${d})">${stext(v)}</td>`;}
+      const man=MAN_KEY===SY+'-'+SM&&MAN[e.id]&&(d in MAN[e.id]);
+      cells+=`<td class="sc ${scls(v)} ${sWeekend(d)?'swe':''}${man?' man':''}"${stl} onclick="scycle(${e.id},${d})"${man?' title="Đã sửa tay (đã lưu)"':''}>${stext(v)}</td>`;}
     h+=`<tr><td class="snm">${e.ten}${vtBadge(e)}</td>${cells}<td><b>${bl||''}</b></td><td><b>${wc}</b></td></tr>`;
   });
   if(!shown.length)h+=`<tr><td colspan="${SDAYS+3}" style="text-align:center;padding:14px;color:var(--muted)">Không có nhân viên thuộc nghiệp vụ đang lọc.</td></tr>`;
   document.getElementById('schGrid').innerHTML=h+'</tbody>';
-  vtPaint();
+  vtPaint();manPaint();
   const ops=monthOpenings();const sle=document.getElementById('siteLegend');
   if(ops.length){sle.style.display='flex';
     sle.innerHTML='<span class="lg" style="color:var(--muted2);font-weight:700">Công trình:</span>'+ops.map(o=>{const c=SITECOL[o.short]||['#eee','#555'];return `<span class="lg"><span class="vt" style="background:${c[0]};color:${c[1]};margin-left:0">${o.short}</span> ${o.ten.length>28?o.ten.slice(0,28)+'…':o.ten}</span>`;}).join('');}
@@ -1944,6 +1970,7 @@ document.querySelectorAll('th[data-uk]').forEach(th=>th.onclick=()=>{const k=th.
 document.getElementById('search').oninput=render;
 document.getElementById('fashionF').onchange=render;
 document.getElementById('upSearch').oninput=renderUpcoming;
+sb.channel('btkt-lichsua').on('postgres_changes',{event:'*',schema:'public',table:'btkt_lich_sua'},async()=>{if(!SY||!SM)return;await loadManual(SY,SM);if(document.getElementById('schMonth')&&document.getElementById('schMonth').value)genSchedule();}).subscribe();
 sb.channel('btkt-rt').on('postgres_changes',{event:'*',schema:'public',table:TABLE},async()=>{await loadData();afterMBChange(false);}).subscribe();
 loadData();
 </script>
